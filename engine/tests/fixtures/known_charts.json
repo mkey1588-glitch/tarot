@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "Charts whose values were derived independently of engine/bazi.py and",
+    "then checked against it -- not captured from its output. Day pillars",
+    "were verified by counting days from the 2000-01-01 = 戊午 anchor; month",
+    "stems by applying the 五虎遁 rule by hand.",
+    "",
+    "BEFORE PHASE 0 GOES LIVE: the retained practitioner should add 20-30",
+    "charts of their own, ideally including people they have read for, and",
+    "confirm every pillar. That review is the real acceptance test for this",
+    "engine; what is here is only enough to catch regressions."
+  ],
+  "charts": [
+    {
+      "label": "mid-month, unambiguous",
+      "birth_local": "1990-05-15T14:30:00",
+      "expect": {"year": "庚午", "month": "辛巳", "day": "庚辰", "hour": "癸未",
+                 "solar_year": 1990, "month_term": "立夏"}
+    },
+    {
+      "label": "before 立春 -- solar year is the PREVIOUS year",
+      "birth_local": "2000-01-01T00:00:00",
+      "expect": {"year": "己卯", "month": "丙子", "day": "戊午", "hour": "壬子",
+                 "solar_year": 1999, "month_term": "大雪"}
+    },
+    {
+      "label": "start of a sexagenary cycle, just after 立春",
+      "birth_local": "1984-02-05T12:00:00",
+      "expect": {"year": "甲子", "month": "丙寅", "day": "己巳", "hour": "庚午",
+                 "solar_year": 1984, "month_term": "立春"}
+    },
+    {
+      "label": "day-pillar anchor",
+      "birth_local": "2000-01-01T12:00:00",
+      "expect": {"day": "戊午", "solar_year": 1999}
+    }
+  ]
+}

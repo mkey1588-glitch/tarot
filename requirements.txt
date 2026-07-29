@@ -1,0 +1,15 @@
+# The engine has NO runtime dependencies — it is pure standard library, so
+# `pytest engine/` runs in CI without credentials or network. Everything
+# below is for the bot.
+
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+line-bot-sdk==3.19.0
+openai==1.54.0
+python-dotenv==1.0.1
+pydantic==2.9.2
+httpx==0.27.2
+stripe==11.1.0
+
+# Dev
+pytest==8.3.3
