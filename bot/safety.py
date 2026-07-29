@@ -34,11 +34,48 @@ class Verdict(Enum):
     BLOCK = "block"
 
 
+class UnscreenedInput(RuntimeError):
+    """Raised when something tries to reach a model without being screened.
+
+    This should never surface at runtime. It exists so that a code path
+    which skips `screen_input` fails immediately and visibly instead of
+    quietly working, which is what a comment saying "remember to screen
+    first" would have got us.
+    """
+
+
+# Held by this module alone. A ScreeningToken cannot be constructed without
+# it, so the token is evidence that screen_input actually ran.
+_MINT = object()
+
+
+@dataclass(frozen=True)
+class ScreeningToken:
+    """Evidence that `screen_input` ran on a message and allowed it.
+
+    Carried into the prompt and checked at the model choke point. Python
+    cannot make this unforgeable and that is not the goal: the goal is that
+    bypassing the screen requires reaching for `bot.safety._MINT` on
+    purpose, which is not something anyone does by accident and is one grep
+    away in review.
+    """
+
+    _mint: object = None
+
+    def __post_init__(self) -> None:
+        if self._mint is not _MINT:
+            raise UnscreenedInput(
+                "a ScreeningToken can only be minted by safety.screen_input(). "
+                "Screen the user's message before building a prompt from it."
+            )
+
+
 @dataclass(frozen=True)
 class SafetyResult:
     verdict: Verdict
     reply: str | None = None
     reason: str | None = None
+    token: ScreeningToken | None = None
 
     @property
     def allowed(self) -> bool:
@@ -99,6 +136,10 @@ def screen_input(text: str) -> SafetyResult:
 
     Crisis detection runs first and unconditionally: it must not be possible
     for a crisis message to reach the model.
+
+    On ALLOW the result carries a `ScreeningToken`, which the model choke
+    point requires. A verdict that is not ALLOW carries no token, so a
+    caller who ignores the verdict cannot proceed to a model call anyway.
     """
     for pattern in _CRISIS_PATTERNS:
         if re.search(pattern, text):
@@ -112,7 +153,7 @@ def screen_input(text: str) -> SafetyResult:
                                     PROFESSIONAL_REPLY[domain],
                                     f"{domain} pattern: {pattern}")
 
-    return SafetyResult(Verdict.ALLOW)
+    return SafetyResult(Verdict.ALLOW, token=ScreeningToken(_MINT))
 
 
 # --- Outbound: what the model says -----------------------------------------
