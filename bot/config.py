@@ -88,6 +88,11 @@ class Config:
     log_level: str = "INFO"
     port: int = 8000
 
+    # Gates /admin/*. The review queue holds birth data, which is personal
+    # information under 個人情報保護法, so those endpoints are disabled
+    # rather than public when this is unset.
+    admin_token: Optional[str] = None
+
     @classmethod
     def from_env(cls, env: Optional[Dict[str, str]] = None) -> "Config":
         """Build from a mapping, defaulting to os.environ.
@@ -131,6 +136,7 @@ class Config:
             monthly_llm_budget_usd=_float("MONTHLY_LLM_BUDGET_USD", 50.0),
             log_level=_str("LOG_LEVEL") or "INFO",
             port=_int("PORT", 8000),
+            admin_token=_str("ADMIN_TOKEN"),
         )
 
     # --- Validation, per capability rather than all at once ---------------

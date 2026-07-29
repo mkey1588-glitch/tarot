@@ -199,8 +199,25 @@ def test_a_short_reading_is_a_single_chunk():
 
 # --- Transports: every sender, not just reply ------------------------------
 
+def _import_every_bot_module():
+    """__subclasses__ only knows about classes that have been imported.
+
+    Without this the scan below would depend on pytest's collection order —
+    it would happen to work today because test_app imports bot.app, and
+    silently stop covering LineTransport the day that test is renamed.
+    """
+    import importlib
+    import pkgutil
+
+    import bot
+
+    for module in pkgutil.iter_modules(bot.__path__):
+        if module.name != "tests":
+            importlib.import_module(f"bot.{module.name}")
+
+
 def all_transport_classes():
-    import bot.outbound  # noqa: F401  (ensures subclasses are imported)
+    _import_every_bot_module()
     seen, stack = [], [Transport]
     while stack:
         for sub in stack.pop().__subclasses__():
@@ -210,8 +227,11 @@ def all_transport_classes():
     return seen
 
 
-def test_transport_subclasses_were_found():
-    assert all_transport_classes(), "the subclass scan found nothing"
+def test_the_scan_found_every_transport_in_the_package():
+    """A scan that quietly matched nothing would make the tests below pass
+    while checking nothing at all."""
+    names = {cls.__name__ for cls in all_transport_classes()}
+    assert {"NullTransport", "LineTransport"} <= names, names
 
 
 @pytest.mark.parametrize("cls", all_transport_classes(),
