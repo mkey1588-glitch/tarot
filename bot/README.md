@@ -122,12 +122,23 @@ remove it. That disclosure lives in onboarding and the privacy policy.
 ## Running it
 
 ```bash
-python -m bot.test_local
+python3 -m bot.test_local
 ```
 
 Walks the whole pipeline with a stub model: no LINE account, no API key, no
 network, no spend. Prints the chart, the prompt, both screening verdicts and
 the final reply for nine scenarios.
+
+It also needs no third-party packages — it runs on a bare system `python3`
+outside the virtualenv, because nothing on this path imports FastAPI, the
+LINE SDK or the OpenAI client. That is worth knowing when you want to check
+the pipeline on a machine that has not been set up.
+
+The test suite does need the virtualenv, for FastAPI's test client:
+
+```bash
+.venv/bin/python -m pytest
+```
 
 ## Cost
 
