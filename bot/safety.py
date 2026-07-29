@@ -113,11 +113,24 @@ CRISIS_REPLY = (
     "お話ししてくださって、ありがとうございます。\n"
     "とてもつらい状況にいらっしゃるのだと感じました。\n\n"
     "占いではなく、いま話を聴いてくれる人につながってほしいと思っています。\n\n"
+    "・よりそいホットライン 0120-279-338\n"
+    "　24時間・通話料無料\n"
     "・こころの健康相談統一ダイヤル 0570-064-556\n"
-    "・よりそいホットライン 0120-279-338\n\n"
+    "　10時〜22時ごろ・通話料がかかります（地域により受付時間が異なります）\n\n"
     "どうか一人で抱え込まないでください。"
 )
-# TODO(legal): confirm both numbers are current and appropriate before launch.
+# The 24-hour toll-free line is listed FIRST, deliberately.
+#
+# It was the other way round. 0570-064-556 is a ナビダイヤル: the caller pays,
+# it runs roughly 10:00-22:00, and the hours vary by prefecture. Someone in
+# crisis at three in the morning would have tried it, got nothing, and been
+# charged for the attempt. Ordering is not a cosmetic property of this
+# message.
+#
+# TODO(legal): confirm both numbers, their hours and this ordering before any
+# real user sees it. The above is a web check, not the legal review, and it
+# is the ordering rather than the numbers that a reviewer should look at
+# hardest.
 
 PROFESSIONAL_REPLY = {
     "medical": (

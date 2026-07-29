@@ -212,3 +212,142 @@ def test_the_demo_builds_a_stub_model_unless_told_otherwise(config, store):
 
 def test_the_page_says_the_prompts_are_placeholders(client):
     assert "PLACEHOLDER" in client.get("/").text.upper()
+
+
+# --- Sharing: the gate, sessions, and what is kept -------------------------
+
+SHARED_ENV = {"FREE_TIER_LIMIT": "3", "DEMO_ACCESS_CODES": "board:brd-1,seed:sd-2"}
+
+
+def shared_client(store, env=None):
+    config = Config.from_env({**SHARED_ENV, **(env or {})})
+    gateway = ModelGateway(StubModel(), BudgetGuard(store, 10.0))
+    return TestClient(create_demo_app(
+        config, store, ReadingService(store, gateway, config), shared=True))
+
+
+def test_sharing_without_access_codes_is_refused(store):
+    """An unlisted URL is not access control, and this page takes birth
+    dates. It refuses rather than warns, because a forgotten env var is not
+    a mistake worth leaving available."""
+    from bot.demo import NotShareable
+    config = Config.from_env({"FREE_TIER_LIMIT": "3"})
+    with pytest.raises(NotShareable, match="DEMO_ACCESS_CODES"):
+        create_demo_app(config, store, shared=True)
+
+
+def test_a_shared_demo_shows_the_gate_before_anything_else(store):
+    client = shared_client(store)
+    body = client.get("/").text
+    assert "アクセスコード" in body
+    assert "恋愛運" not in body       # no form, no presets, no pipeline
+
+
+def test_a_reading_cannot_be_run_without_a_session(store):
+    client = shared_client(store)
+    response = client.post("/reading", headers=FORM, follow_redirects=False,
+                           data={"birth_date": "1990-05-15",
+                                 "question": "恋愛運を教えてください"})
+    assert response.status_code == 303
+    assert list(store.iter_llm_usage()) == []
+
+
+def test_a_valid_code_opens_the_demo(store):
+    client = shared_client(store)
+    assert client.post("/enter", headers=FORM, data={"code": "brd-1"},
+                       follow_redirects=False).status_code == 303
+    assert "恋愛運" in client.get("/").text
+
+
+def test_a_wrong_code_does_not(store):
+    client = shared_client(store)
+    response = client.post("/enter", headers=FORM, data={"code": "guess"},
+                           follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/?bad=1"
+    assert "アクセスコード" in client.get("/").text
+
+
+def test_the_session_cookie_is_httponly_and_not_the_user_id(store):
+    client = shared_client(store)
+    response = client.post("/enter", headers=FORM, data={"code": "brd-1"},
+                           follow_redirects=False)
+    cookie = response.headers["set-cookie"]
+    assert "HttpOnly" in cookie
+    assert "SameSite=lax" in cookie.replace("samesite", "SameSite")
+
+
+def test_cohorts_are_recorded_so_board_and_seed_can_be_told_apart(store):
+    """The Phase 0 conversion number depends on this distinction."""
+    for code in ("brd-1", "sd-2"):
+        shared_client(store).post("/enter", headers=FORM, data={"code": code})
+    cohorts = [e["cohort"] for e in store.iter_events()
+               if e["type"] == "demo_session_started"]
+    assert sorted(cohorts) == ["board", "seed"]
+
+
+def test_each_visitor_gets_their_own_quota(store):
+    """One board member must not be able to exhaust another's allowance."""
+    first, second = shared_client(store), shared_client(store)
+    first.post("/enter", headers=FORM, data={"code": "brd-1"})
+    second.post("/enter", headers=FORM, data={"code": "brd-1"})
+    for _ in range(3):
+        read(first)
+    assert "本日分の無料鑑定はここまで" in read(first).text
+    assert "本日分の無料鑑定はここまで" not in read(second).text
+
+
+def test_the_session_token_never_reaches_the_event_log(store):
+    client = shared_client(store)
+    response = client.post("/enter", headers=FORM, data={"code": "brd-1"},
+                           follow_redirects=False)
+    token = response.headers["set-cookie"].split("=")[1].split(";")[0]
+    read(client)
+    assert token not in store.events_file.read_text(encoding="utf-8")
+
+
+def test_the_access_code_never_reaches_the_event_log(store):
+    client = shared_client(store)
+    client.post("/enter", headers=FORM, data={"code": "brd-1"})
+    assert "brd-1" not in store.events_file.read_text(encoding="utf-8")
+
+
+# --- What a visitor is told ------------------------------------------------
+
+def test_the_privacy_notice_is_reachable_without_a_code(store):
+    body = shared_client(store).get("/privacy").text
+    assert "個人情報の扱い" in body
+    assert "生年月日は保存しません" in body
+
+
+def test_the_readiness_page_is_reachable_and_honest(store):
+    body = shared_client(store).get("/readiness").text
+    assert "六つのゲート" in body
+    assert "シードユーザー" in body
+    assert "不可" in body            # not ready for real users, and says so
+
+
+def test_the_readiness_page_distinguishes_the_two_thresholds(store):
+    """The board demo is allowed and seed users are not, and the page has to
+    say both — a page that says "not ready" flatly would be ignored."""
+    body = shared_client(store).get("/readiness").text
+    board = body[body.index("friends-and-family"):body.index("real users")]
+    seed = body[body.index("real users"):]
+    assert "可</span>" in board and "不可" not in board
+    assert "不可" in seed
+
+
+def test_the_banner_reports_unmet_gates(store):
+    client = shared_client(store)
+    client.post("/enter", headers=FORM, data={"code": "brd-1"})
+    assert "未達のゲート" in client.get("/").text
+
+
+def test_birth_data_is_never_written_for_an_ordinary_reading(store):
+    """The web form carries it on every request, so there is no reason to
+    keep it. Only a boundary chart's review entry records one."""
+    client = shared_client(store)
+    client.post("/enter", headers=FORM, data={"code": "brd-1"})
+    read(client)
+    assert "1990-05-15" not in store.users_file.read_text(encoding="utf-8")
+    assert "1990-05-15" not in store.events_file.read_text(encoding="utf-8")

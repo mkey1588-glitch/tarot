@@ -35,26 +35,70 @@ no CDN, no new dependency, and it works with no network.
 from __future__ import annotations
 
 import argparse
+import atexit
 import html
 import logging
-from typing import Optional
+import secrets
+import shutil
+import tempfile
+from datetime import datetime
+from typing import Dict, Optional
 
 from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from bot import readiness
 from bot.config import Config, load_env
 from bot.cost import BudgetGuard
 from bot.llm import ModelGateway, StubModel
 from bot.outbound import NullTransport, Outbound
 from bot.prompts_ja import PROMPTS_ARE_PLACEHOLDERS, startup_warning
 from bot.reading import BirthData, ReadingService, ReadingTrace, parse_birth_data
-from bot.storage import Storage
+from bot.storage import JST, Storage
 
 logger = logging.getLogger("uranai.demo")
 
 DEMO_USER = "demo-user"
+SESSION_COOKIE = "uranai_demo"
+
+
+class NotShareable(RuntimeError):
+    """Raised rather than serving the demo to the internet without a gate."""
+
+
+class Sessions:
+    """Per-visitor sessions, held in memory.
+
+    Opaque 256-bit tokens, kept server-side. Restarting the process logs
+    everyone out, which is the correct trade for a demo: no session state
+    outlives the deployment, and there is nothing to leak at rest.
+
+    Each visitor gets their own user id, so the free-tier quota is per
+    person rather than shared, and one board member cannot exhaust another's.
+    """
+
+    def __init__(self):
+        self._sessions: Dict[str, dict] = {}
+
+    def create(self, cohort: str) -> str:
+        token = secrets.token_urlsafe(32)
+        self._sessions[token] = {
+            "cohort": cohort,
+            "created_at": datetime.now(JST).isoformat(),
+            # Derived from the token, never the token itself: this reaches
+            # the event log, and a log that carries session tokens is a log
+            # that can impersonate the people in it.
+            "user_id": f"demo:{cohort}:{secrets.token_hex(6)}",
+        }
+        return token
+
+    def get(self, token: Optional[str]) -> Optional[dict]:
+        return self._sessions.get(token or "")
+
+    def __len__(self) -> int:
+        return len(self._sessions)
 
 ELEMENT_CLASS = {"木": "wood", "火": "fire", "土": "earth",
                  "金": "metal", "水": "water"}
@@ -176,14 +220,115 @@ def esc(value) -> str:
 
 # --- Fragments -------------------------------------------------------------
 
-def banner() -> str:
+def banner(config: Optional[Config] = None) -> str:
+    blocking = readiness.blocking(config)
     bits = []
     if PROMPTS_ARE_PLACEHOLDERS:
-        bits.append("プロンプトはすべてプレースホルダーです — "
-                    "PROMPTS ARE PLACEHOLDERS, written by an engineer, not "
-                    "by the practitioner")
-    bits.append("no legal review · not for public use · friends-and-family only")
-    return (f'<div class="banner"><b>DEMO</b> — ' + " · ".join(bits) + "</div>")
+        bits.append("鑑定文はまだ実務家が書いたものではありません "
+                    "(prompts are placeholders, written by an engineer)")
+    bits.append(f"未達のゲート {len(blocking)}/6 — "
+                f'<a href="/readiness" style="color:inherit">詳細</a>')
+    bits.append('<a href="/privacy" style="color:inherit">個人情報の扱い</a>')
+    return ('<div class="banner"><b>DEMO</b> — ' + " · ".join(bits) +
+            "</div>")
+
+
+def gate_page(rejected: bool) -> str:
+    """Shown until an access code is entered.
+
+    The demo is gated rather than unlisted because it takes a birth date,
+    and because "nobody will find the URL" has never been true.
+    """
+    error = ('<div class="reason" style="color:var(--stop)">'
+             'コードが違うようです。</div>' if rejected else "")
+    return f"""
+{header()}
+<div class="card" style="max-width:460px">
+  <h2>アクセスコード</h2>
+  <p style="font-size:14px;margin:0 0 4px">
+    このデモは招待制です。お渡ししたコードを入力してください。</p>
+  <form method="post" action="/enter">
+    <label for="code">コード</label>
+    <input type="text" id="code" name="code" autocomplete="off" autofocus>
+    {error}
+    <button type="submit">入る</button>
+  </form>
+  <div class="meta"><span><a href="/privacy">個人情報の扱い</a></span>
+    <span><a href="/readiness">公開準備状況</a></span></div>
+</div>
+<div class="foot">AI が生成する占いの試作です。娯楽・自己理解のためのもので、
+医療・法律・投資の判断には使えません。</div>"""
+
+
+def privacy_notice(config: Config) -> str:
+    """What this demo does with what you type. Placeholder copy, but the
+    facts in it are checked against the code."""
+    persist = ("この配備ではデータをディスクに保存します。"
+               if config.demo_persist else
+               "この配備では、入力内容はプロセスの再起動で消えます。")
+    return f"""
+<div class="card" style="max-width:720px">
+  <h2>個人情報の扱い（デモ）</h2>
+  <div class="stage"><span class="what"><b>生年月日は保存しません。</b>
+    命式の計算に使い、そのつど破棄します。{persist}</span></div>
+  <div class="stage"><span class="what"><b>ご相談の文面は保存しません。</b>
+    危機的な表現を検知した場合も、記録するのは「どのパターンが反応したか」と
+    時刻だけです。本文もセッションの識別子も残しません。</span></div>
+  <div class="stage"><span class="what"><b>節気の境界にあたる命式のみ、</b>
+    人が確認するための控えに生年月日が記録されます。自動では鑑定を出さない
+    ためで、この控えは上記の保存方針に従います。</span></div>
+  <div class="stage"><span class="what"><b>鑑定文は AI が生成します。</b>
+    すべての鑑定文にその旨を表示します。</span></div>
+  <div class="stage"><span class="what"><b>これは試作です。</b>
+    文言の法務レビューは未了で、鑑定文は実務家ではなくエンジニアが書いた
+    プレースホルダーです。</span></div>
+  <div class="meta"><span><a href="/">戻る</a></span></div>
+</div>
+<div class="foot">PLACEHOLDER — this notice has not had legal review, and a
+privacy notice is exactly the kind of copy that needs it.</div>"""
+
+
+def readiness_card(config: Optional[Config]) -> str:
+    def rows(gate_list):
+        return "".join(
+            stage("", esc(gate.title),
+                  pill("ok", "OK") if gate.met else pill("warn", "未達"),
+                  gate.detail)
+            for gate in gate_list
+        )
+
+    for_real = readiness.ready_for_real_users(config)
+    for_ff = readiness.ready_for_friends_and_family(config)
+
+    return f"""
+<div class="card" style="max-width:820px">
+  <h2>下限 — 誰に見せるにせよ、これは満たしている必要があります</h2>
+  {rows(readiness.floor())}
+  <div class="reason" style="margin-top:10px">
+    六つのゲートには含まれません。リンクは転送されますし、誰であれ
+    「死にたい」と書く可能性があるからです。
+  </div>
+</div>
+<div class="card" style="max-width:820px">
+  <h2>六つのゲート — CLAUDE.md「Before anything reaches a real user」</h2>
+  {rows(readiness.gates(config))}
+</div>
+<div class="card" style="max-width:820px">
+  <h2>判定</h2>
+  <div class="stage"><span class="what"><b>ボード・知人への提示</b>
+    （friends-and-family）<div class="reason">試作であると伝えたうえで</div>
+    </span>{pill("ok", "可") if for_ff else pill("stop", "不可")}</div>
+  <div class="stage"><span class="what"><b>シードユーザー・一般公開</b>
+    （real users）<div class="reason">反応を数える相手に見せる場合</div>
+    </span>{pill("ok", "可") if for_real else pill("stop", "不可")}</div>
+  <div class="reason" style="margin-top:10px">
+    CLAUDE.md: &ldquo;Friends-and-family smoke testing is fine before all six.
+    A public LINE account is not.&rdquo;<br>
+    シードユーザーは friends-and-family ではありません。実際の生年月日を預けて、
+    生成された日本語を読む相手です。
+  </div>
+  <div class="meta"><span><a href="/">戻る</a></span></div>
+</div>"""
 
 
 def form(birth_date: str, birth_time: str, question: str, tier: str,
@@ -394,9 +539,38 @@ def footer(config: Config, storage: Storage) -> str:
 def create_demo_app(config: Optional[Config] = None,
                     storage: Optional[Storage] = None,
                     service: Optional[ReadingService] = None,
-                    live: bool = False) -> FastAPI:
+                    live: bool = False,
+                    shared: bool = False) -> FastAPI:
+    """Build the demo.
+
+    `shared=True` means this will be reachable by someone other than the
+    person who started it, and it changes two things:
+
+      * access codes become mandatory. An unguessable URL is not access
+        control, and this page takes birth dates.
+      * storage is ephemeral unless DEMO_PERSIST is set, so nothing a
+        visitor types outlives the process.
+    """
     config = config or Config.from_env({"FREE_TIER_LIMIT": "3"})
-    storage = storage or Storage(config.data_dir / "demo")
+
+    if shared and not config.demo_access_codes:
+        raise NotShareable(
+            "refusing to share the demo without DEMO_ACCESS_CODES. An "
+            "unlisted URL is not access control, and this page collects "
+            'birth dates. Set e.g. DEMO_ACCESS_CODES="board:<code>".'
+        )
+
+    if storage is None:
+        if shared and not config.demo_persist:
+            # Nothing a visitor types survives the process. The only birth
+            # data written at all is a boundary chart's review-queue entry;
+            # see the privacy notice.
+            temporary = tempfile.mkdtemp(prefix="uranai-demo-")
+            atexit.register(shutil.rmtree, temporary, True)
+            logger.info("ephemeral demo storage at %s", temporary)
+            storage = Storage(temporary)
+        else:
+            storage = Storage(config.data_dir / "demo")
 
     if service is None:
         if live:
@@ -414,23 +588,65 @@ def create_demo_app(config: Optional[Config] = None,
         )
 
     app = FastAPI(title="AI Uranai — demo")
+    sessions = Sessions()
+    app.state.sessions = sessions
 
     warning = startup_warning()
     if warning:
         logger.warning(warning)
+    for gate in readiness.blocking(config):
+        logger.warning("readiness gate not met — %s: %s", gate.key, gate.detail)
+
+    def visitor(request: Request) -> Optional[dict]:
+        """The current session, or None. No codes configured means local
+        use, where the operator is the only visitor."""
+        if not config.demo_access_codes:
+            return {"cohort": "local", "user_id": DEMO_USER}
+        return sessions.get(request.cookies.get(SESSION_COOKIE))
 
     @app.get("/", response_class=HTMLResponse)
-    def index(preset: int = 0):
+    def index(request: Request, preset: int = 0, bad: int = 0):
+        if visitor(request) is None:
+            return page(gate_page(bool(bad)))
         _label, birth_date, birth_time, question = PRESETS[
             preset if 0 <= preset < len(PRESETS) else 0]
-        return page(header() + banner() +
+        return page(header() + banner(config) +
                     '<div class="cols">' +
                     form(birth_date, birth_time, question, "free", live) +
                     '<div>' + intro() + '</div>'
                     '</div>' + footer(config, storage))
 
+    @app.post("/enter")
+    async def enter(request: Request):
+        fields = _parse_form(await request.body())
+        submitted = (fields.get("code") or "").strip()
+        cohort = config.demo_access_codes.get(submitted)
+        if cohort is None:
+            logger.warning("demo access refused")
+            return RedirectResponse("/?bad=1", status_code=303)
+
+        token = sessions.create(cohort)
+        storage.log_event("demo_session_started", {"cohort": cohort})
+        response = RedirectResponse("/", status_code=303)
+        response.set_cookie(
+            SESSION_COOKIE, token, httponly=True, samesite="lax",
+            secure=request.url.scheme == "https", max_age=60 * 60 * 12,
+        )
+        return response
+
+    @app.get("/privacy", response_class=HTMLResponse)
+    def privacy():
+        return page(header() + privacy_notice(config))
+
+    @app.get("/readiness", response_class=HTMLResponse)
+    def readiness_page():
+        return page(header() + readiness_card(config))
+
     @app.post("/reading", response_class=HTMLResponse)
     async def reading(request: Request):
+        session = visitor(request)
+        if session is None:
+            return RedirectResponse("/", status_code=303)
         # Parsed here rather than with FastAPI's Form(), which needs
         # python-multipart — not a dependency worth adding for a dev tool.
         # A GET form would avoid both, but it would put the user's question
@@ -446,7 +662,7 @@ def create_demo_app(config: Optional[Config] = None,
         trace = ReadingTrace()
 
         # The real pipeline. Nothing about this call is demo-specific.
-        outcome = service.generate(DEMO_USER, question, birth=birth,
+        outcome = service.generate(session["user_id"], question, birth=birth,
                                    tier=tier, trace=trace)
 
         # Sent through a real Transport, then rendered from what the
@@ -456,7 +672,7 @@ def create_demo_app(config: Optional[Config] = None,
         transport.reply("demo-reply-token", outcome.message)
         delivered = transport.sent[-1]["message"]
 
-        body = [header(), banner(), '<div class="cols">',
+        body = [header(), banner(config), '<div class="cols">',
                 form(birth_date, birth_time, question, tier, live), '<div>',
                 reply_card(delivered, question),
                 pipeline_card(trace, outcome.outcome, outcome.cost_usd,
@@ -468,9 +684,12 @@ def create_demo_app(config: Optional[Config] = None,
         return page("".join(body))
 
     @app.get("/reset")
-    def reset():
-        storage.upsert_user(DEMO_USER, {"quota_reset_date": "1970-01-01",
-                                        "free_quota_used": 0})
+    def reset(request: Request):
+        session = visitor(request)
+        if session is not None:
+            storage.upsert_user(session["user_id"],
+                                {"quota_reset_date": "1970-01-01",
+                                 "free_quota_used": 0})
         return RedirectResponse("/", status_code=303)
 
     return app
@@ -509,8 +728,15 @@ def _birth_from_form(birth_date: str, birth_time: str) -> Optional[BirthData]:
 
 
 def main() -> None:  # pragma: no cover - entry point
+    import os
+
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=8100)
+    # $PORT so a platform that assigns one is not fought with.
+    parser.add_argument("--port", type=int,
+                        default=int(os.getenv("PORT", "8100")))
+    parser.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"),
+                        help="0.0.0.0 to serve beyond this machine. Requires "
+                             "DEMO_ACCESS_CODES.")
     parser.add_argument("--live", action="store_true",
                         help="call the real model instead of the stub. "
                              "Needs OPENAI_API_KEY; still budget-guarded.")
@@ -520,16 +746,30 @@ def main() -> None:  # pragma: no cover - entry point
 
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    if args.live:
-        load_env()
-    config = Config.from_env() if args.live else Config.from_env(
-        {"FREE_TIER_LIMIT": "3"})
+    load_env()
+    config = Config.from_env()
+    shared = args.host not in {"127.0.0.1", "localhost", "::1"}
 
-    print(f"\n  AI Uranai demo — http://127.0.0.1:{args.port}")
-    print(f"  model: {'LIVE (billed, budget-guarded)' if args.live else 'stub (no network, no spend)'}\n")
+    # Refuses rather than warns. A demo that takes birth dates and serves
+    # them to the internet because someone forgot an env var is not a
+    # mistake worth leaving available.
+    app = create_demo_app(config, live=args.live, shared=shared)
 
-    uvicorn.run(create_demo_app(config, live=args.live),
-                host="127.0.0.1", port=args.port)
+    print(f"\n  AI Uranai demo — http://{args.host}:{args.port}")
+    print(f"  model     {'LIVE (billed, budget-guarded)' if args.live else 'stub (no network, no spend)'}")
+    print(f"  access    {'codes required — ' + ', '.join(sorted(set(config.demo_access_codes.values()))) if config.demo_access_codes else 'OPEN (loopback only)'}")
+    print(f"  storage   {'persistent' if config.demo_persist or not shared else 'ephemeral (wiped on exit)'}")
+    # flush: stdout is block-buffered when this is not a terminal, which is
+    # exactly the case where someone is reading the log to find out what
+    # they just deployed.
+    print(f"  readiness {readiness.summary(config)}"
+          f"  ·  friends-and-family: "
+          f"{'ok' if readiness.ready_for_friends_and_family(config) else 'NO'}"
+          f"  ·  real users: "
+          f"{'ok' if readiness.ready_for_real_users(config) else 'NO'}\n",
+          flush=True)
+
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":  # pragma: no cover

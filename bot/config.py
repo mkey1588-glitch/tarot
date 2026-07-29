@@ -55,6 +55,27 @@ class UnpricedModel(RuntimeError):
     """
 
 
+def _access_codes(raw: Optional[str]) -> Dict[str, str]:
+    """Parse "board:abc,seed:def" into {code: cohort}.
+
+    Keyed by code so a lookup is O(1) and so two cohorts cannot collide on
+    the same code silently. A bare "abc" is treated as cohort "guest".
+
+    Cohorts exist so the event log can tell a board member's session from a
+    seed user's, which is the distinction the whole Phase 0 number rests on.
+    """
+    codes: Dict[str, str] = {}
+    for chunk in (raw or "").split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        cohort, _, code = chunk.rpartition(":")
+        code = code.strip()
+        if code:
+            codes[code] = (cohort.strip() or "guest")
+    return codes
+
+
 def price_for(model: str) -> Tuple[float, float]:
     if model not in MODEL_PRICES_USD_PER_MTOK:
         raise UnpricedModel(
@@ -92,6 +113,20 @@ class Config:
     # information under 個人情報保護法, so those endpoints are disabled
     # rather than public when this is unset.
     admin_token: Optional[str] = None
+
+    # Payments. Present only to answer "is the 特商法 notice required yet".
+    stripe_secret_key: Optional[str] = None
+
+    # Set to the date counsel signed off the user-facing copy. Read by
+    # bot/readiness.py; it is not something an engineer should be setting.
+    legal_review_completed_on: Optional[str] = None
+
+    # --- Shared demo (bot/demo.py) ---------------------------------------
+    # "label:code,label:code". No codes means the demo refuses to bind to
+    # anything but loopback — an unlisted URL is not access control.
+    demo_access_codes: Dict[str, str] = field(default_factory=dict)
+    # Whether the shared demo keeps anything on disk between restarts.
+    demo_persist: bool = False
 
     @classmethod
     def from_env(cls, env: Optional[Dict[str, str]] = None) -> "Config":
@@ -137,6 +172,11 @@ class Config:
             log_level=_str("LOG_LEVEL") or "INFO",
             port=_int("PORT", 8000),
             admin_token=_str("ADMIN_TOKEN"),
+            stripe_secret_key=_str("STRIPE_SECRET_KEY"),
+            legal_review_completed_on=_str("LEGAL_REVIEW_COMPLETED_ON"),
+            demo_access_codes=_access_codes(_str("DEMO_ACCESS_CODES")),
+            demo_persist=(_str("DEMO_PERSIST") or "").lower()
+                         in {"1", "true", "yes"},
         )
 
     # --- Validation, per capability rather than all at once ---------------
