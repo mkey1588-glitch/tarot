@@ -32,6 +32,9 @@ placeholder default; this file records what the retained reader rules and why.
   schools correct, others use clock time as reported.
 - **Product cost if yes:** we must ask for birth *place*, not just time,
   which adds an onboarding field. Worth knowing before we design the flow.
+- **Depends on P6:** correcting by 18 minutes presumes we have a clock time
+  to correct. The missing-hour rate instrumented under P6 is the evidence
+  this ruling should be made on, and it may settle P2 without a ruling.
 - **Ruling:** _pending_
 
 ### P3. Which set of hidden stems? (蔵干)
@@ -62,6 +65,25 @@ placeholder default; this file records what the retained reader rules and why.
 - **Note:** must be *written* in Japanese, not translated. Translation is
   what makes a product read like a chatbot.
 - **Ruling:** _pending_
+
+### P6. What can honestly be read from a three-pillar chart?
+
+- **Code:** `compute_chart(..., hour_known=False)`, `Chart.hour_known`
+- **Placeholder default:** birth time is **optional**; an absent hour
+  produces a three-pillar chart rather than a refusal.
+- **Why it matters:** many Japanese adults do not know their birth time.
+  Requiring it puts a wall at the first question, and a user who never got
+  asked is indistinguishable in the funnel from a user who declined to pay
+  — which destroys the one number Phase 0 exists to produce. So the product
+  answer is settled. What is not settled is the divination answer: **what
+  can and cannot honestly be said from three pillars, and where should the
+  reading go quiet rather than guess?** The engine refuses to invent a 時柱;
+  it cannot know which readings silently depend on one.
+- **Ruling:** _pending_
+- **Instrumented:** the missing-hour rate is logged per chart and reported
+  at `/admin/stats`. That number also decides **P2**: if a large share of
+  users cannot give us an hour, asking them for a birth *place* so we can
+  apply an 18-minute longitude correction is not a serious proposition.
 
 ---
 

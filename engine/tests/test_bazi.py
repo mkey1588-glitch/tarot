@@ -133,6 +133,96 @@ def test_hour_stem_follows_wushu_rule():
     pytest.fail("no 甲 or 己 day found in 60 days, which is impossible")
 
 
+# --- Unknown birth time: three pillars, not four (P6) ----------------------
+
+def test_unknown_hour_produces_no_hour_pillar():
+    """The failure this guards: before P6, a date-only birth silently got a
+    時柱 computed from midnight. A fabricated pillar is the one error a
+    knowledgeable user spots instantly."""
+    chart = compute_chart(datetime(1990, 5, 15), hour_known=False)
+    assert chart.hour is None
+    assert not chart.hour_known
+    assert chart.to_dict()["pillars"]["hour"] is None
+    assert chart.to_dict()["hour_known"] is False
+
+
+def test_unknown_hour_keeps_the_other_three_pillars_intact():
+    known = compute_chart(datetime(1990, 5, 15, 7, 30))
+    unknown = compute_chart(datetime(1990, 5, 15), hour_known=False)
+    assert (unknown.year.name, unknown.month.name, unknown.day.name) == \
+           (known.year.name, known.month.name, known.day.name)
+    assert unknown.day_master == known.day_master
+
+
+def test_unknown_hour_ignores_the_reported_clock_time():
+    """A caller who has no hour may still pass a datetime. Whatever is in
+    the time component must not reach the chart."""
+    midnight = compute_chart(datetime(1990, 5, 15, 0, 0), hour_known=False)
+    for hour in (3, 11, 19, 23):
+        other = compute_chart(datetime(1990, 5, 15, hour, 45), hour_known=False)
+        assert other.to_dict() == midnight.to_dict(), f"hour {hour} leaked"
+
+
+def test_unknown_hour_tallies_six_element_positions():
+    chart = compute_chart(datetime(1990, 5, 15), hour_known=False)
+    assert sum(chart.element_counts.values()) == 6
+
+
+def test_unknown_hour_skips_local_mean_time_correction():
+    """Correcting an unknown clock time is meaningless, and from midnight a
+    negative correction crosses into the previous day and moves the DAY
+    pillar — the exact silent error this whole module exists to prevent."""
+    fukuoka = ChartOptions(apply_local_mean_time=True, birth_longitude_deg=130.4)
+    corrected = compute_chart(datetime(1990, 5, 15), fukuoka, hour_known=False)
+    plain = compute_chart(datetime(1990, 5, 15), hour_known=False)
+    assert corrected.day.name == plain.day.name
+
+
+def test_unknown_hour_does_not_require_a_longitude():
+    """The known-hour path raises without one. The unknown-hour path never
+    uses it, so it must not raise."""
+    compute_chart(datetime(1990, 5, 15),
+                  ChartOptions(apply_local_mean_time=True),
+                  hour_known=False)
+
+
+def test_unknown_hour_widens_the_boundary_window_to_the_whole_day():
+    """Born on the day 立春 falls, with no clock time, the YEAR pillar is
+    genuinely ambiguous rather than merely imprecise. 30 minutes is the
+    wrong question to ask of a 24-hour window."""
+    on_the_day = lichun(2001).astimezone(JST).replace(hour=0, minute=0)
+    chart = compute_chart(on_the_day, hour_known=False)
+    assert chart.needs_manual_review
+    assert any("立春" in w and "unknown" in w for w in chart.boundary_warnings)
+
+    # The same date with a clock time well clear of the instant is fine.
+    clear = compute_chart(on_the_day.replace(hour=23, minute=59))
+    assert not clear.needs_manual_review
+
+
+def test_unknown_hour_away_from_any_term_is_not_flagged():
+    assert not compute_chart(datetime(1990, 5, 15), hour_known=False).needs_manual_review
+
+
+def test_unknown_hour_flags_a_month_term_falling_on_the_birth_date():
+    from engine.solar import solar_term_instant
+
+    risshuu = solar_term_instant(135.0, datetime(2020, 8, 7, tzinfo=timezone.utc))
+    chart = compute_chart(risshuu.astimezone(JST).replace(hour=0, minute=0),
+                          hour_known=False)
+    assert chart.needs_manual_review
+    assert any("MONTH" in w for w in chart.boundary_warnings)
+
+
+def test_day_change_at_2300_does_not_apply_without_an_hour():
+    """early/late 子時 is a question about a clock time we do not have."""
+    rolls = ChartOptions(day_changes_at_2300=True)
+    holds = ChartOptions(day_changes_at_2300=False)
+    d = datetime(2020, 6, 1)
+    assert compute_chart(d, rolls, hour_known=False).day.name == \
+           compute_chart(d, holds, hour_known=False).day.name
+
+
 # --- Boundary honesty ------------------------------------------------------
 
 def test_births_near_a_term_boundary_are_flagged_for_review():

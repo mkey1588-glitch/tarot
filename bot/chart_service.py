@@ -29,9 +29,15 @@ class ManualReviewRequired(Exception):
 
 def build_payload(birth_local: datetime,
                   options: ChartOptions | None = None,
-                  allow_uncertain: bool = False) -> dict[str, Any]:
-    """Compute a chart and shape it for the prompt."""
-    chart = compute_chart(birth_local, options)
+                  allow_uncertain: bool = False,
+                  hour_known: bool = True) -> dict[str, Any]:
+    """Compute a chart and shape it for the prompt.
+
+    `hour_known=False` yields a three-pillar chart. The payload says so in
+    `hour_known`, and the prompt must instruct the model to stay quiet on
+    what the missing pillar carries. See P6 in docs/DECISIONS.md.
+    """
+    chart = compute_chart(birth_local, options, hour_known=hour_known)
 
     if chart.needs_manual_review and not allow_uncertain:
         raise ManualReviewRequired(chart.boundary_warnings)
@@ -56,6 +62,11 @@ def format_for_prompt(payload: dict[str, Any]) -> str:
         lines.append(
             f"  時柱 {p['hour']['pillar']}（{p['hour']['stem_element']}/{p['hour']['branch_element']}）"
         )
+    else:
+        # Stated rather than omitted: the practitioner reviewing this needs
+        # to see that the hour was absent, not wonder whether it was lost
+        # somewhere between the engine and the prompt.
+        lines.append("  時柱 不明（出生時刻の申告なし・三柱で鑑定）")
     dm = payload["day_master"]
     lines.append(f"【日主】{dm['stem']}（{dm['element']}・{dm['polarity']}）")
     counts = "　".join(f"{k}{v}" for k, v in payload["element_counts"].items())
