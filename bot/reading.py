@@ -150,6 +150,36 @@ class ReadingOutcome:
     review_id: Optional[str] = None
 
 
+@dataclass
+class ReadingTrace:
+    """What each stage decided, for an operator looking over the pipeline.
+
+    Opt-in: `generate` fills one only when the caller passes one in, so the
+    webhook path is unaffected. Held in memory and handed back to that
+    caller — never logged, never stored. It contains the chart and the
+    prompt, which are derived from personal information.
+
+    It exists because the practitioner grading output weekly needs the chart
+    the model was given, not just what it said, and re-deriving that outside
+    the pipeline would show what we think happened rather than what did.
+    """
+
+    input_verdict: Optional[str] = None
+    input_reason: Optional[str] = None
+    quota_remaining: Optional[int] = None
+    chart: Optional[dict] = None
+    chart_text: Optional[str] = None
+    prompt_system: Optional[str] = None
+    prompt_user: Optional[str] = None
+    model: Optional[str] = None
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    model_text: Optional[str] = None
+    output_verdict: Optional[str] = None
+    output_reason: Optional[str] = None
+    disclosure_appended: bool = False
+
+
 class ReadingService:
     def __init__(self, storage: Storage, gateway: ModelGateway, config):
         self.storage = storage
@@ -160,10 +190,15 @@ class ReadingService:
                  birth: Optional[BirthData] = None,
                  tier: str = "free",
                  kind: str = "question",
-                 today: Optional[date] = None) -> ReadingOutcome:
+                 today: Optional[date] = None,
+                 trace: Optional[ReadingTrace] = None) -> ReadingOutcome:
         # 1. Screening. Before the quota check, before the chart, before
         #    anything that could cost money or take time.
         screened = screen_input(text)
+
+        if trace is not None:
+            trace.input_verdict = screened.verdict.value
+            trace.input_reason = screened.reason
 
         if screened.verdict is Verdict.REDIRECT_CRISIS:
             # Pattern and timestamp only. Not the message, not the user id.
@@ -190,6 +225,10 @@ class ReadingService:
                 user_id, self.config.free_tier_limit):
             return ReadingOutcome(canned(Msg.QUOTA_EXHAUSTED), "quota_exhausted")
 
+        if trace is not None:
+            trace.quota_remaining = self.storage.free_quota_remaining(
+                user_id, self.config.free_tier_limit)
+
         # 4. The chart. Computed here, never by the model.
         try:
             payload = build_payload(birth.as_datetime(),
@@ -201,6 +240,10 @@ class ReadingService:
                                {"hour_known": birth.hour_known})
 
         chart_text = format_for_prompt(payload)
+
+        if trace is not None:
+            trace.chart = payload
+            trace.chart_text = chart_text
 
         # 5. The prompt. Built from the chart, never from a birth date.
         if kind == "daily":
@@ -220,6 +263,11 @@ class ReadingService:
         model = (self.config.model_paid if tier == "paid"
                  else self.config.model_free)
 
+        if trace is not None:
+            trace.prompt_system = prompt.system
+            trace.prompt_user = prompt.user
+            trace.model = model
+
         # 6. The model call.
         try:
             completion = self.gateway.complete(prompt, user_id=user_id,
@@ -234,6 +282,15 @@ class ReadingService:
 
         # 7. Outbound screening and disclosure, both, in that order.
         message = outbound_reading(completion.text)
+
+        if trace is not None:
+            trace.prompt_tokens = completion.prompt_tokens
+            trace.completion_tokens = completion.completion_tokens
+            trace.model_text = completion.text
+            trace.output_verdict = ("block" if message.blocked_reason
+                                    else "allow")
+            trace.output_reason = message.blocked_reason
+            trace.disclosure_appended = message.kind == "reading"
 
         if message.blocked_reason:
             # E5: a block is a prompt defect. It goes to the weekly

@@ -121,6 +121,30 @@ remove it. That disclosure lives in onboarding and the privacy policy.
 
 ## Running it
 
+A browser demo, for showing the system to someone who is not going to read
+a terminal — the board, and more usefully the practitioner:
+
+```bash
+.venv/bin/python -m bot.demo
+```
+
+Then open <http://127.0.0.1:8100>. It puts the chart, the exact prompt and
+the reply on one screen, which is what the weekly review needs and what a
+scrolling log does badly. Presets cover four pillars, three pillars, a
+boundary chart, crisis language, a professional referral and an
+unregistered user.
+
+It runs the **real** pipeline — same `ReadingService`, same screening, same
+`Outbound`, sent through a real `Transport` and rendered from what that
+transport received. A mock would only prove we can write HTML. It uses the
+stub model and cannot spend money; `--live` calls the real one and is still
+budget-guarded.
+
+It is a window onto the product, not the product. Phase 0 ships a LINE bot,
+and nothing on that page has had legal review.
+
+And the same thing in a terminal:
+
 ```bash
 python3 -m bot.test_local
 ```
