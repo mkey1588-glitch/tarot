@@ -10,6 +10,18 @@
 data/
 *.jsonl
 
+# Source material we read from but do not carry. Git history is permanent
+# and this repository will outlive any one person's control of it.
+#
+# The board package v1.1 in particular contains claims later established to
+# be wrong, corrected only in Appendix I. Committed here without that
+# appendix attached, someone finds it in two years and treats it as fact.
+#
+# Tracked documentation is CLAUDE.md, README.md and docs/*.md. Nothing else.
+reference/
+docs/*.pdf
+docs/*.docx
+
 # Python
 __pycache__/
 *.py[cod]
