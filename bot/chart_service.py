@@ -50,10 +50,24 @@ def format_for_prompt(payload: dict[str, Any]) -> str:
 
     Kept human-readable on purpose: the practitioner grading output weekly
     needs to check the chart the model was given, not just what it said.
+
+    The birth datetime is deliberately NOT included, though `build_payload`
+    returns it. Two reasons, and they point the same way:
+
+      * A model handed a birth date has the raw material to recompute a
+        pillar, and "check my work" is exactly the behaviour E1 exists to
+        prevent. The pillars fully determine the reading; the date adds
+        nothing to interpret and one thing to get wrong.
+      * It is personal information under 個人情報保護法 going to a third
+        party for no benefit. The chart is not identifying in the same way.
+
+    Auditability is not lost: the prompt still carries every computed value,
+    and the birth data it came from is in our own store, which is where a
+    reviewer already has to look to check that we recorded it correctly.
     """
     p = payload["pillars"]
     lines = [
-        f"【命式】{payload['birth_local']}",
+        "【命式】",
         f"  年柱 {p['year']['pillar']}（{p['year']['stem_element']}/{p['year']['branch_element']}）",
         f"  月柱 {p['month']['pillar']}（{p['month']['stem_element']}/{p['month']['branch_element']}） 節気: {payload['month_term']}",
         f"  日柱 {p['day']['pillar']}（{p['day']['stem_element']}/{p['day']['branch_element']}）",

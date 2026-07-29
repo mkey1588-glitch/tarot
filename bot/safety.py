@@ -77,6 +77,13 @@ class SafetyResult:
     reason: str | None = None
     token: ScreeningToken | None = None
 
+    # Which pattern fired, and for a professional referral which domain.
+    # Separate fields rather than parsing them back out of `reason`: the
+    # crisis logger records the pattern and must never be handed a string
+    # that someone later decides to enrich with the message text.
+    pattern: str | None = None
+    domain: str | None = None
+
     @property
     def allowed(self) -> bool:
         return self.verdict is Verdict.ALLOW
@@ -144,14 +151,16 @@ def screen_input(text: str) -> SafetyResult:
     for pattern in _CRISIS_PATTERNS:
         if re.search(pattern, text):
             return SafetyResult(Verdict.REDIRECT_CRISIS, CRISIS_REPLY,
-                                f"crisis pattern: {pattern}")
+                                f"crisis pattern: {pattern}",
+                                pattern=pattern)
 
     for domain, patterns in _PROFESSIONAL_PATTERNS.items():
         for pattern in patterns:
             if re.search(pattern, text):
                 return SafetyResult(Verdict.REDIRECT_PROFESSIONAL,
                                     PROFESSIONAL_REPLY[domain],
-                                    f"{domain} pattern: {pattern}")
+                                    f"{domain} pattern: {pattern}",
+                                    pattern=pattern, domain=domain)
 
     return SafetyResult(Verdict.ALLOW, token=ScreeningToken(_MINT))
 
