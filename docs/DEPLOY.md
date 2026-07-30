@@ -78,24 +78,87 @@ URL is not access control, and this page takes birth dates.
 
 ---
 
-## Run it
+## Why not Vercel
 
-Locally, exactly as it will run when deployed:
+Vercel's Python runtime is serverless: an ephemeral filesystem and many
+short-lived instances. Four things here depend on state surviving between
+requests, and all four break.
+
+| | container host | Vercel |
+|---|---|---|
+| `MONTHLY_LLM_BUDGET_USD` | sums `data/llm_usage.jsonl` for the month | the log is empty on every cold start, so spend reads `$0` and **the cap stops capping** |
+| Free-tier quota | per visitor | not enforced — each instance sees an empty store |
+| Manual-review queue | a boundary chart reaches a human | the entry vanishes; we tell the user a person will look and nobody can |
+| Access codes | in-memory sessions | visitors logged out as instances cycle |
+
+The first row is the disqualifier. Making it work on a serverless runtime
+means putting spend and quota in an external store — a database, which is on
+the CLAUDE.md do-not-build list for Phase 0 and would be an odd thing to add
+for a demo. The same applies to any function-per-request platform.
+
+## GitHub → Render
+
+No local Docker or CLI needed. Render reads `render.yaml` and the
+`Dockerfile` straight from the repository.
+
+**Make the GitHub repository private.** `CLAUDE.md` carries the board's
+approved budget and cap and `docs/` carries the strategy. `reference/` and the
+board PDF are gitignored and will not be pushed — the `no-secrets` CI job
+checks exactly that — but the rest is not for a public repo.
+
+```bash
+git remote add origin git@github.com:<you>/<repo>.git
+git push -u origin main sprint-01
+```
+
+Then in Render: **New → Blueprint**, pick the repository, and it reads
+`render.yaml`. Set `DEMO_ACCESS_CODES` in the dashboard when prompted — it is
+marked `sync: false` so it is never committed:
+
+```bash
+python3 -c "import secrets; print('board:'+secrets.token_urlsafe(9)+',seed:'+secrets.token_urlsafe(9))"
+```
+
+Give the board the URL and the `board:` code. `/health` reports what is
+actually deployed — model, gates met, whether access is gated — without
+opening the page.
+
+Two notes on the free plan: it idles after inactivity and takes ~30 seconds to
+wake, so the first person to open the link waits; and the region is set to
+Singapore, the nearest Render region to Japan. Move to starter if that first
+impression matters.
+
+Railway, Fly and Cloud Run work the same way from the same `Dockerfile`; only
+the dashboard differs.
+
+## Running a live model
+
+By default the deployment runs the stub, which cannot spend anything. To use a
+real model set `OPENAI_API_KEY` and change the Docker command to
+`python -m bot.demo --live`.
+
+Be clear about what that adds. It does not show the product's voice — the
+prompts are still placeholders written by an engineer, and the voice is what a
+board member forms an impression from. It shows that the pipeline produces a
+real reading from a real chart. `MONTHLY_LLM_BUDGET_USD` is $5 in
+`render.yaml`, checked before every call against the worst case that call
+could cost.
+
+## Locally, the same image
 
 ```bash
 docker build -t uranai-demo . && docker run --rm -p 8100:8100 -e DEMO_ACCESS_CODES="board:try-me-1234" uranai-demo
 ```
 
-Any container host works — Fly, Railway, Render, Cloud Run. There is no
-database, no volume and no build step beyond `pip install`. Set the
-variables above, point the platform at the `Dockerfile`, and give it `$PORT`.
+Or without Docker:
 
-For a live model, add `OPENAI_API_KEY` and change the command to
-`python -m bot.demo --live`. It still goes through the budget guard.
+```bash
+python3 scripts/run_demo.py --port 8100
+```
 
-I have not deployed this anywhere — no account of yours is involved, and
-choosing a host and a region for a service that touches Japanese personal
-information is your call, not mine.
+I have not deployed this anywhere and no account of yours is involved.
+Choosing a host and region for a service that touches Japanese personal
+information is your call.
 
 ---
 

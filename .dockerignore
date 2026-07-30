@@ -1,0 +1,32 @@
+# Keep secrets and personal information out of image layers. A file copied
+# in and deleted later is still in the layer history, so the fix is to never
+# copy it.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Birth data is personal information under 個人情報保護法.
+data/
+*.jsonl
+
+# Source material we read from but do not ship. reference/ holds the board
+# package, which states claims only Appendix I corrects.
+reference/
+docs/*.pdf
+docs/*.docx
+
+# Not needed at runtime, and .venv is both large and platform-specific.
+.venv/
+venv/
+.git/
+.github/
+.claude/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+scripts/
+.DS_Store

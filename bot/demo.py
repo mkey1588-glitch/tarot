@@ -634,6 +634,21 @@ def create_demo_app(config: Optional[Config] = None,
         )
         return response
 
+    @app.get("/health")
+    def health():
+        """For a platform's health check, and for answering "what is actually
+        deployed right now" without opening the page."""
+        return {
+            "status": "ok",
+            "model": "live" if live else "stub",
+            "gates_met": readiness.summary(config),
+            "ready_for_friends_and_family":
+                readiness.ready_for_friends_and_family(config),
+            "ready_for_real_users": readiness.ready_for_real_users(config),
+            "prompts_are_placeholders": PROMPTS_ARE_PLACEHOLDERS,
+            "access_gated": bool(config.demo_access_codes),
+        }
+
     @app.get("/privacy", response_class=HTMLResponse)
     def privacy():
         return page(header() + privacy_notice(config))

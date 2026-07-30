@@ -18,11 +18,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY engine/ engine/
 COPY bot/ bot/
 COPY docs/DECISIONS.md docs/DECISIONS.md
-COPY CLAUDE.md .
 
 # bot/readiness.py reads docs/DECISIONS.md and bot/safety.py to decide which
 # launch gates are met. Both are copied above, deliberately: a build that
 # dropped them would report a readiness it had not earned.
+#
+# CLAUDE.md is NOT copied. It carries the board's approved budget figures and
+# nothing at runtime reads it, so it has no business on a deployed host.
 
 # Storage is ephemeral by default when shared, so the container needs no
 # volume. Set DEMO_PERSIST=true and mount one only if you have decided to

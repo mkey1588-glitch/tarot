@@ -1,0 +1,45 @@
+# Render Blueprint for the shared demo. Read docs/DEPLOY.md first — in
+# particular the part about who this may be shown to.
+#
+# Render is used rather than Vercel because this app keeps state between
+# requests: the monthly budget guard sums spend out of data/llm_usage.jsonl,
+# the free-tier quota is per visitor, and a boundary chart writes a queue
+# entry a human has to read. On a serverless runtime with an ephemeral
+# filesystem all three quietly stop working, and the first one means
+# MONTHLY_LLM_BUDGET_USD would no longer cap anything.
+
+services:
+  - type: web
+    name: uranai-demo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # Free plan idles after inactivity and takes ~30s to wake. Fine for a
+    # board demo; move to starter if that first impression matters.
+    plan: free
+    region: singapore          # nearest Render region to Japan
+    healthCheckPath: /health
+    envVars:
+      # Set this in the Render dashboard, not here. Format:
+      # "board:<code>,seed:<code>". The app refuses to start without it when
+      # bound publicly — an unlisted URL is not access control, and this page
+      # takes birth dates.
+      - key: DEMO_ACCESS_CODES
+        sync: false
+
+      # Only needed to run a real model. Leave unset and the demo uses the
+      # stub, which cannot spend anything.
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # A hard ceiling, checked before every call against the worst case that
+      # call could cost. Keep it small for a demo.
+      - key: MONTHLY_LLM_BUDGET_USD
+        value: "5"
+
+      - key: HOST
+        value: 0.0.0.0
+
+      # Ephemeral storage: nothing a visitor types survives a restart. Set to
+      # true, and attach a disk, only if you have decided to keep it.
+      - key: DEMO_PERSIST
+        value: "false"

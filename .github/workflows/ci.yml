@@ -1,0 +1,49 @@
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  engine:
+    # The engine has no runtime dependencies and no network access, which is
+    # what makes it the acceptance criteria for the practitioner review. This
+    # job installs nothing but pytest, so a dependency creeping into engine/
+    # fails here rather than being discovered later.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest
+      - run: python -m pytest engine/tests -q
+
+  full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      # No credentials and no network are configured for this job on purpose.
+      # Every test must pass without them; a test that needs a key is a test
+      # that will be skipped and then rot.
+      - run: python -m pytest -q
+
+  no-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: nothing that should be gitignored is tracked
+        run: |
+          set -e
+          for pattern in '\.env$' '^data/' '^reference/' '\.pdf$' '\.docx$' '\.jsonl$'; do
+            if git ls-files | grep -E "$pattern"; then
+              echo "::error::tracked file matches $pattern"
+              exit 1
+            fi
+          done
+          echo "clean"

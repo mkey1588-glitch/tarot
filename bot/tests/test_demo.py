@@ -351,3 +351,29 @@ def test_birth_data_is_never_written_for_an_ordinary_reading(store):
     read(client)
     assert "1990-05-15" not in store.users_file.read_text(encoding="utf-8")
     assert "1990-05-15" not in store.events_file.read_text(encoding="utf-8")
+
+
+# --- /health: what is actually deployed ------------------------------------
+
+def test_health_needs_no_code(store):
+    """A platform health check has no cookie. If this needed one, the
+    deployment would look permanently unhealthy."""
+    assert shared_client(store).get("/health").status_code == 200
+
+
+def test_health_reports_the_model_and_the_gates(store):
+    body = shared_client(store).get("/health").json()
+    assert body["model"] == "stub"
+    assert body["ready_for_friends_and_family"] is True
+    assert body["ready_for_real_users"] is False
+    assert body["prompts_are_placeholders"] is True
+    assert body["access_gated"] is True
+
+
+def test_health_reports_when_access_is_not_gated(store, config):
+    assert make_client(store, config).get("/health").json()["access_gated"] is False
+
+
+def test_health_leaks_no_codes_or_keys(store):
+    body = shared_client(store).get("/health").text
+    assert "brd-1" not in body and "sd-2" not in body
