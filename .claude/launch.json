@@ -3,8 +3,7 @@
   "configurations": [
     {
       "name": "demo",
-      "runtimeExecutable": "/Users/paulrock/Documents/tarot/.venv/bin/python",
-      "runtimeArgs": ["-m", "bot.demo", "--port", "8100"],
+      "url": "http://localhost:8100",
       "port": 8100
     }
   ]

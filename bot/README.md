@@ -170,3 +170,25 @@ The prototype measured well under $5/month at 1,000 MAU on a small model.
 `MONTHLY_LLM_BUDGET_USD` is checked inside `ModelGateway.complete` before
 the transport is touched, against the worst case the call could cost — not
 afterwards against what it did cost, which is a report rather than a cap.
+
+## A note on the preview pane
+
+`.claude/launch.json` **attaches** to an already-running server rather than
+starting one. It has to: on macOS `~/Documents` is a TCC-protected location,
+and the preview launcher does not inherit the Files-and-Folders grant that a
+terminal has, so it cannot read anything in this repo — not `.venv`, not even
+`scripts/run_demo.py`. The failure is `[Errno 1] Operation not permitted` and
+it is a permission on the directory, not a fault in the config.
+
+So start the server yourself, then attach:
+
+```bash
+python3 scripts/run_demo.py --port 8100
+```
+
+`scripts/run_demo.py` runs under any Python 3.9+ on the machine and finds the
+venv's packages itself, so it needs no activation.
+
+To make the preview pane start the server on its own instead, grant the app
+access to your Documents folder in System Settings → Privacy & Security, or
+move the repo somewhere outside `~/Documents`, `~/Desktop` and `~/Downloads`.
