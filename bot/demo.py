@@ -68,6 +68,27 @@ DEMO_USER = "demo-user"
 SESSION_COOKIE = "uranai_demo"
 
 
+def deployed_version() -> dict:
+    """What is actually running, for answering "did it deploy?".
+
+    Without this the question is unanswerable from outside whenever a
+    release changes nothing visible — which is most of them. Platforms
+    publish the commit they built; we read whichever one is present.
+    """
+    import os
+
+    sha = (os.getenv("VERCEL_GIT_COMMIT_SHA")
+           or os.getenv("RENDER_GIT_COMMIT")
+           or os.getenv("GIT_COMMIT_SHA")
+           or "")
+    return {
+        "commit": sha[:12] or "unknown",
+        "branch": (os.getenv("VERCEL_GIT_COMMIT_REF")
+                   or os.getenv("RENDER_GIT_BRANCH") or "unknown"),
+        "built_at": os.getenv("VERCEL_DEPLOYMENT_ID", "") or "unknown",
+    }
+
+
 class NotShareable(RuntimeError):
     """Raised rather than serving the demo to the internet without a gate."""
 
@@ -721,6 +742,7 @@ def create_demo_app(config: Optional[Config] = None,
         deployed right now" without opening the page."""
         return {
             "status": "ok",
+            "version": deployed_version(),
             "model": "live" if live else "stub",
             "gates_met": readiness.summary(config),
             "ready_for_friends_and_family":

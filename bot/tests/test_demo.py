@@ -522,3 +522,22 @@ def test_the_visitor_id_is_stable_across_instances(store):
     second = Sessions("shared-secret").get(token)
     assert first["user_id"] == second["user_id"]
     assert first["user_id"].startswith("demo:board:")
+
+
+# --- Knowing what is deployed ---------------------------------------------
+
+def test_health_reports_the_deployed_commit(store, monkeypatch):
+    """Without this, "did it deploy?" is unanswerable from outside whenever
+    a release changes nothing visible — which is most of them."""
+    monkeypatch.setenv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890")
+    monkeypatch.setenv("VERCEL_GIT_COMMIT_REF", "main")
+    version = shared_client(store).get("/health").json()["version"]
+    assert version["commit"] == "abcdef123456"
+    assert version["branch"] == "main"
+
+
+def test_health_reports_unknown_rather_than_lying(store, monkeypatch):
+    for key in ("VERCEL_GIT_COMMIT_SHA", "RENDER_GIT_COMMIT",
+                "GIT_COMMIT_SHA", "VERCEL_GIT_COMMIT_REF"):
+        monkeypatch.delenv(key, raising=False)
+    assert shared_client(store).get("/health").json()["version"]["commit"] == "unknown"
