@@ -140,6 +140,14 @@ DEMO_SESSION_SECRET   python3 -c "import secrets; print(secrets.token_urlsafe(32
 
 Startup refuses without either.
 
+`pyproject.toml` carries a `[project]` table because Vercel's builder runs
+`uv lock`, which fails with *"No `project` table found"* without one, and
+`[tool.uv] package = false` because otherwise uv tries to build the project
+and there is no build backend. `requirements.txt` remains the source of
+truth for the full application; the `[project]` dependencies list only what
+the serverless demo imports at module load, which is `fastapi` and nothing
+else.
+
 **No live model there, by construction.** `MONTHLY_LLM_BUDGET_USD` is
 enforced by summing `data/llm_usage.jsonl`, which is empty on every cold
 start on a serverless filesystem — so the cap would read `$0` spent for ever

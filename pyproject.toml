@@ -1,6 +1,30 @@
-# Present so Vercel can find the ASGI app. The project is otherwise plain
-# setuptools-free: requirements.txt is the dependency source of truth, and
-# engine/ deliberately has no dependencies at all.
+# Present so Vercel can build. Its Python builder uses `uv`, which needs a
+# [project] table; without one it fails with "No `project` table found".
+#
+# requirements.txt remains the source of truth for the full application —
+# LINE SDK, OpenAI client, Stripe, pytest. What is listed here is only what
+# the serverless demo imports at module load, which is one package.
+#
+# That is deliberate and worth keeping true. `openai`, `uvicorn` and
+# `dotenv` are imported lazily inside functions, so they are absent from the
+# deployment entirely. The demo therefore cannot call a billable model on
+# this platform even if someone sets OPENAI_API_KEY — the library is not
+# there. bot/demo.py refuses in code for the same reason; this is the same
+# guarantee expressed in packaging.
+
+[project]
+name = "uranai-demo"
+version = "0.0.0"
+description = "Phase 0 reading-pipeline demo"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi==0.115.0",
+]
+
+[tool.uv]
+# Not an installable package — there is no build backend and nothing here
+# should be pip-installed. Without this, `uv lock` tries to build it.
+package = false
 
 [tool.vercel]
 # api/index.py, NOT bot/app.py. Vercel's autodetection suggests bot.app:app
