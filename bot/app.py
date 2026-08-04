@@ -30,7 +30,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
-from bot import funnel, payments, prompts_ja
+from bot import alerts, funnel, payments, prompts_ja
 from bot.config import Config, load_env
 from bot.cost import BudgetGuard
 from bot.line_api import LineTransport, parse_events, verify_signature
@@ -67,7 +67,8 @@ def create_app(config: Optional[Config] = None,
         config.require_llm()
         gateway = ModelGateway(OpenAIModel(config.openai_api_key),
                                BudgetGuard(storage, config.monthly_llm_budget_usd))
-        service = ReadingService(storage, gateway, config)
+        service = ReadingService(storage, gateway, config,
+                                 alerts=alerts.alerts_for(config, transport))
 
     app = FastAPI(title="AI Uranai (Phase 0)")
     app.state.config = config
@@ -128,6 +129,9 @@ def create_app(config: Optional[Config] = None,
             "llm_spend_month_to_date_usd": round(guard.month_to_date_usd(), 4),
             "llm_budget_usd": config.monthly_llm_budget_usd,
             "prompts_are_placeholders": prompts_ja.PROMPTS_ARE_PLACEHOLDERS,
+            "operator_alerts_configured":
+                alerts.alerts_for(config, transport).configured,
+            "overdue_manual_reviews": len(alerts.overdue_reviews(storage)),
         }
 
     @app.get("/admin/funnel", dependencies=[Depends(require_admin)])

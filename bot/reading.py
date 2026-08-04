@@ -182,10 +182,14 @@ class ReadingTrace:
 
 class ReadingService:
     def __init__(self, storage: Storage, gateway: ModelGateway, config,
-                 cohort: str = "line"):
+                 cohort: str = "line", alerts=None):
         self.storage = storage
         self.gateway = gateway
         self.config = config
+        # Defaults to log-only, which reports itself as unconfigured rather
+        # than letting a missing alert look like a working one.
+        from bot.alerts import LogOnlyAlerts
+        self.alerts = alerts or LogOnlyAlerts()
         # Board traffic and seed traffic are different populations; averaging
         # them produces a conversion number that describes nobody.
         self.cohort = cohort
@@ -343,9 +347,9 @@ class ReadingService:
             user_id, "solar_term_boundary",
             {"warnings": list(needs_human.warnings), **birth.to_record()},
         )
-        logger.warning(
-            "chart needs manual review: review_id=%s (details in the queue, "
-            "not in this log)", review_id)
+        # The alerter logs; it also pushes to the operator when one is
+        # configured. The user has already been promised a person will look.
+        self.alerts.review_queued(review_id, "solar_term_boundary")
         self.storage.log_event("manual_review_queued",
                                {"review_id": review_id,
                                 "hour_known": birth.hour_known})

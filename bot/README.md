@@ -148,9 +148,13 @@ a pattern and a timestamp and has no parameter that could accept one.
       the only part that cannot be tested without a real customer and real
       money. It refuses until all six gates are met.
 - [ ] 特定商取引法 notice — required the moment payment is enabled.
-- [ ] A real operator alert for the manual-review queue. Phase 0 has a queue
-      file, a WARNING log and `/admin/review-queue`, which relies on someone
-      looking. Honest for a founder-run pilot, not beyond it.
+- [x] Operator alert for the manual-review queue — `bot/alerts.py`. Set
+      `OPERATOR_LINE_USER_ID` and a boundary chart pushes to your own LINE.
+      Unset, it degrades to logging and reports itself as **unconfigured**
+      at `/admin/stats`, rather than letting a missing alert look like a
+      working one. `overdue_manual_reviews` counts entries older than 24h,
+      because an alert that fires and is then ignored is the same as no
+      alert.
 - [ ] `MODEL_PRICES_USD_PER_MTOK` re-confirmed against current pricing.
 
 ## Running it

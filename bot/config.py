@@ -114,6 +114,11 @@ class Config:
     # rather than public when this is unset.
     admin_token: Optional[str] = None
 
+    # Where a boundary-chart alert goes. Unset means log-only, which is
+    # honest for a developer at a terminal and insufficient once a real user
+    # has been told that a person will look at their chart.
+    operator_line_user_id: Optional[str] = None
+
     # Payments. Present only to answer "is the 特商法 notice required yet".
     stripe_secret_key: Optional[str] = None
 
@@ -185,6 +190,7 @@ class Config:
             log_level=_str("LOG_LEVEL") or "INFO",
             port=_int("PORT", 8000),
             admin_token=_str("ADMIN_TOKEN"),
+            operator_line_user_id=_str("OPERATOR_LINE_USER_ID"),
             stripe_secret_key=_str("STRIPE_SECRET_KEY"),
             legal_review_completed_on=_str("LEGAL_REVIEW_COMPLETED_ON"),
             demo_access_codes=_access_codes(_str("DEMO_ACCESS_CODES")),

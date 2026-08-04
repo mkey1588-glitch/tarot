@@ -54,6 +54,7 @@ class Msg(Enum):
     MANUAL_REVIEW = "manual_review"
     READING_UNAVAILABLE = "reading_unavailable"
     SERVICE_PAUSED = "service_paused"
+    OPERATOR_REVIEW_ALERT = "operator_review_alert"
     CRISIS = "crisis"
     PROFESSIONAL_MEDICAL = "professional_medical"
     PROFESSIONAL_LEGAL = "professional_legal"
@@ -192,6 +193,17 @@ TEMPLATES: Dict[Msg, str] = {
     Msg.SERVICE_PAUSED: (
         "ただいま混み合っており、鑑定を一時的にお休みしています。\n"
         "時間をおいてからお試しください。"
+    ),
+
+    # Operational, not product copy — it goes to us, not to a customer, so
+    # it does not need the practitioner's voice. It does need the same
+    # discipline about personal information: the review id and nothing else.
+    # The birth data is in the queue entry, which the reviewer opens; a
+    # phone notification is not where it belongs.
+    Msg.OPERATOR_REVIEW_ALERT: (
+        "【要確認】節気の境界にあたる命式が1件あります。\n"
+        "受付番号：{review_id}\n"
+        "/admin/review-queue で内容を確認してください。"
     ),
 
     # Referenced, not copied: safety.py is the source of truth for these.
