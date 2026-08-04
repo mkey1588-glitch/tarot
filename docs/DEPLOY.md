@@ -78,6 +78,48 @@ URL is not access control, and this page takes birth dates.
 
 ---
 
+## A Cloudflare URL, today
+
+```bash
+./scripts/share_tunnel.sh
+```
+
+Starts the demo in shared mode and points a Cloudflare Quick Tunnel at it,
+then prints a `https://<something>.trycloudflare.com` URL and freshly
+generated access codes. Send the URL and the `board:` code.
+
+Everything works exactly as it does locally, because it *is* the local
+process: real budget guard, real per-visitor quota, real review queue. The
+cost is that the link is alive only while that terminal is open and the Mac
+is awake, and a new URL is issued each run.
+
+`cloudflared` has to be installed first. This machine has no Homebrew or npm,
+so the script prints the one-line download and stops rather than fetching a
+binary onto your PATH on your behalf.
+
+**`--shared` is not optional here.** The tunnel connects to `127.0.0.1`, so
+the server cannot tell from its own socket that it has been republished to
+the internet. Without that flag it would conclude it was private and drop the
+access-code requirement at exactly the moment the page became public. The
+script always passes it; if you start the demo by hand and tunnel to it
+yourself, pass it too.
+
+## Why not Cloudflare Pages or Workers
+
+Two separate reasons, either one sufficient.
+
+The Workers runtime is V8 with Python via Pyodide. It cannot run FastAPI, and
+the only way around that would be reimplementing `engine/` in JavaScript — a
+second implementation of the chart maths, which is the one thing CLAUDE.md
+rules out. A chart bug is a failing test; two chart implementations drifting
+apart is a wrong reading nobody notices.
+
+And it is serverless, so it has the same state problem as Vercel below.
+
+Cloudflare **Containers** does run this image and is always-on, but needs a
+Workers Paid plan. If you want that rather than the tunnel, it is a
+`wrangler.jsonc` away — ask and I will write it.
+
 ## Why not Vercel
 
 Vercel's Python runtime is serverless: an ephemeral filesystem and many

@@ -377,3 +377,26 @@ def test_health_reports_when_access_is_not_gated(store, config):
 def test_health_leaks_no_codes_or_keys(store):
     body = shared_client(store).get("/health").text
     assert "brd-1" not in body and "sd-2" not in body
+
+
+# --- Being shared through a tunnel ----------------------------------------
+
+def test_a_tunnel_cannot_bypass_the_access_gate():
+    """A Cloudflare Tunnel connects to 127.0.0.1 and republishes it to the
+    internet. The process cannot tell that from its own socket, so binding
+    to loopback proves nothing about who can reach it. --shared says so
+    explicitly, and it must still demand access codes."""
+    import inspect
+
+    from bot import demo
+    source = inspect.getsource(demo.main)
+    assert "args.shared or" in source, \
+        "shared mode must be forceable independently of the bind address"
+
+
+def test_shared_mode_demands_codes_regardless_of_bind_address(store):
+    """The refusal is a property of shared mode, not of the host argument."""
+    from bot.demo import NotShareable
+    config = Config.from_env({"FREE_TIER_LIMIT": "3"})
+    with pytest.raises(NotShareable):
+        create_demo_app(config, store, shared=True)

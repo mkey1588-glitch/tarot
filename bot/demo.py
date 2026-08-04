@@ -755,6 +755,13 @@ def main() -> None:  # pragma: no cover - entry point
     parser.add_argument("--live", action="store_true",
                         help="call the real model instead of the stub. "
                              "Needs OPENAI_API_KEY; still budget-guarded.")
+    parser.add_argument("--shared", action="store_true",
+                        default=(os.getenv("DEMO_SHARED", "").lower()
+                                 in {"1", "true", "yes"}),
+                        help="this server is reachable by someone other than "
+                             "you, even though it binds to loopback. Required "
+                             "when a tunnel or proxy sits in front of it — see "
+                             "below.")
     args = parser.parse_args()
 
     import uvicorn
@@ -763,7 +770,15 @@ def main() -> None:  # pragma: no cover - entry point
                         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     load_env()
     config = Config.from_env()
-    shared = args.host not in {"127.0.0.1", "localhost", "::1"}
+
+    # The bind address is not sufficient to decide this. A Cloudflare Tunnel,
+    # ngrok, or any reverse proxy connects to 127.0.0.1 and republishes it to
+    # the internet — the process cannot tell from its own socket that this has
+    # happened. Binding to loopback therefore proves nothing, and inferring
+    # "private" from it would silently drop the access-code requirement at
+    # exactly the moment the page became public. So --shared is explicit, and
+    # scripts/share_tunnel.sh always passes it.
+    shared = args.shared or args.host not in {"127.0.0.1", "localhost", "::1"}
 
     # Refuses rather than warns. A demo that takes birth dates and serves
     # them to the internet because someone forgot an env var is not a
