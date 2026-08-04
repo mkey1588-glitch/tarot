@@ -144,3 +144,29 @@ def test_a_project_table_exists_for_uv():
     text = PYPROJECT.read_text(encoding="utf-8")
     assert "[project]" in text
     assert "requires-python" in text
+
+
+# --- Routing ---------------------------------------------------------------
+
+def test_there_is_no_catch_all_rewrite():
+    """A `/(.*)` -> `/api/index` rewrite breaks routing rather than enabling
+    it. In Vercel's backend-framework mode the entrypoint in pyproject.toml
+    already receives every request with its original path; a rewrite makes
+    the app see the literal string `/api/index` instead, so every route
+    404s — including `/api/index`.
+
+    Vercel warns about this at build time ("Internal rewrites in backend
+    framework projects now route requests using the rewritten destination
+    path"). This test is here because that warning was easy to scroll past.
+    """
+    config = ROOT / "vercel.json"
+    if not config.exists():
+        return
+    import json
+    rewrites = json.loads(config.read_text(encoding="utf-8")).get("rewrites", [])
+    for rule in rewrites:
+        assert "/api/index" not in rule.get("destination", ""), (
+            "this rewrite makes the app receive /api/index as the request "
+            "path, so every route 404s. Vercel routes to the entrypoint on "
+            "its own."
+        )

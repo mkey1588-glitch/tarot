@@ -140,6 +140,14 @@ DEMO_SESSION_SECRET   python3 -c "import secrets; print(secrets.token_urlsafe(32
 
 Startup refuses without either.
 
+**No `vercel.json`, and in particular no rewrite.** In backend-framework
+mode the entrypoint already receives every request with its original path.
+A `/(.*)` → `/api/index` rewrite makes the app see the literal string
+`/api/index` instead, so every route 404s including that one — which looks
+like a broken app but is a working app being handed a path it has no route
+for. Vercel warns about this at build time and the warning is easy to
+scroll past.
+
 `pyproject.toml` carries a `[project]` table because Vercel's builder runs
 `uv lock`, which fails with *"No `project` table found"* without one, and
 `[tool.uv] package = false` because otherwise uv tries to build the project
