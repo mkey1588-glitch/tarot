@@ -48,6 +48,9 @@ class Msg(Enum):
     BIRTH_DATA_UNPARSEABLE = "birth_data_unparseable"
     NEED_BIRTH_DATA_FIRST = "need_birth_data_first"
     QUOTA_EXHAUSTED = "quota_exhausted"
+    PAYWALL_OFFER = "paywall_offer"
+    CHECKOUT_HANDOFF = "checkout_handoff"
+    PAYMENT_UNAVAILABLE = "payment_unavailable"
     MANUAL_REVIEW = "manual_review"
     READING_UNAVAILABLE = "reading_unavailable"
     SERVICE_PAUSED = "service_paused"
@@ -121,6 +124,47 @@ TEMPLATES: Dict[Msg, str] = {
     Msg.QUOTA_EXHAUSTED: (
         "本日分の無料鑑定はここまでとなります。\n"
         "日本時間の午前0時にまたお使いいただけます。"
+    ),
+
+    # RULE 1 IS THE WHOLE DESIGN OF THIS MESSAGE.
+    #
+    # "Never monetise fear" constrains the paywall more than it constrains
+    # any reading. The prohibited shape is: imply misfortune is coming, then
+    # offer to avert it for money — which the amended 消費者契約法 makes
+    # voidable, and which is why we chose subscription over pay-per-reading
+    # as the eventual model.
+    #
+    # So this offer says what is included and what it costs. It does not
+    # hint that something is wrong, does not imply the free reading withheld
+    # anything worrying, and does not use scarcity or a deadline (Rule 4,
+    # no dark patterns). If a future version of this copy needs the user to
+    # feel uneasy to work, the product is wrong, not the copy.
+    #
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.PAYWALL_OFFER: (
+        "ここまでが無料でご覧いただける範囲です。\n\n"
+        "もう少し詳しい鑑定をご希望でしたら、{price}円でご用意しています。\n"
+        "・命式全体を踏まえた、長めの鑑定文\n"
+        "・いまのご相談に絞った見立て\n\n"
+        "お急ぎでなければ、日を改めてでも構いません。"
+        "無料の鑑定は日本時間の午前0時にまたお使いいただけます。\n\n"
+        "ご希望の場合は「詳しく」とお送りください。"
+    ),
+
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.CHECKOUT_HANDOFF: (
+        "お手続きのページをご用意しました。\n{url}\n\n"
+        "{price}円（税込）・1回分の鑑定です。\n"
+        "お支払い後、あらためて鑑定文をお送りします。"
+    ),
+
+    # Shown when the paywall is reached but payment is not permitted yet.
+    # Honest about why: we are not ready to sell, rather than the user
+    # having done something wrong.
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.PAYMENT_UNAVAILABLE: (
+        "申し訳ありません。有料の鑑定は現在ご用意できていません。\n"
+        "準備が整いましたらあらためてご案内します。"
     ),
 
     # Not an apology, and not a generated reading. The chart genuinely sits

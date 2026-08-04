@@ -244,6 +244,49 @@ def test_the_free_tier_runs_out(service):
     assert outcome.message.text == TEMPLATES[Msg.QUOTA_EXHAUSTED]
 
 
+def test_no_paywall_is_shown_while_we_are_not_allowed_to_sell(service, store):
+    """Offering a paid reading we may not sell would advertise a product
+    that does not exist — and it would put PAYWALL_SHOWN in the funnel for
+    people who were never really asked, making the one number Phase 0 exists
+    to produce a fiction."""
+    from bot import funnel
+    for _ in range(4):
+        service.generate("U1", "恋愛運を教えて", BIRTH)
+    assert funnel.counts(store)["paywall_shown"] == 0
+
+
+def test_the_paywall_is_offered_once_the_gates_are_met(store, config,
+                                                       monkeypatch):
+    from bot import funnel, payments, reading as reading_module
+    monkeypatch.setattr(reading_module.payments, "enabled_for",
+                        lambda _config: True)
+    service = make_service(store, config)
+    for _ in range(3):
+        service.generate("U1", "恋愛運を教えて", BIRTH)
+
+    outcome = service.generate("U1", "恋愛運を教えて", BIRTH)
+    assert outcome.outcome == "paywall_shown"
+    assert str(config.deep_reading_price_jpy) in outcome.message.text
+    assert funnel.counts(store)["paywall_shown"] == 1
+
+
+def test_the_paywall_offer_never_implies_misfortune(store, config,
+                                                    monkeypatch):
+    """Rule 1. The prohibited shape is: misfortune is coming, pay to avert
+    it — which the amended 消費者契約法 makes voidable."""
+    from bot import reading as reading_module
+    monkeypatch.setattr(reading_module.payments, "enabled_for",
+                        lambda _config: True)
+    service = make_service(store, config)
+    for _ in range(3):
+        service.generate("U1", "恋愛運を教えて", BIRTH)
+    text = service.generate("U1", "恋愛運を教えて", BIRTH).message.text
+
+    for scare in ("不幸", "災い", "危険", "祟り", "因縁", "手遅れ", "今だけ",
+                  "限定", "残り"):
+        assert scare not in text, f"paywall copy contains {scare}"
+
+
 def test_an_exhausted_quota_makes_no_model_call(store, config):
     service = make_service(store, config)
     for _ in range(3):

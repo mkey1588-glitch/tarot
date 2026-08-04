@@ -185,6 +185,21 @@ class Storage:
     def iter_events(self) -> Iterator[dict]:
         return self._read_jsonl(self.events_file)
 
+    def log_funnel_event(self, stage: str, user_id: str, cohort: str,
+                         **extra) -> None:
+        """Record a funnel step. Deliberately carries a user id.
+
+        The one category of event that identifies someone, because a
+        conversion rate counts people rather than events. Contrast
+        `log_crisis_event` directly below, which cannot be handed an
+        identifier at all: knowing that someone reached the paywall is an
+        operational metric, and knowing who typed 死にたい is not one.
+        """
+        self._append(self.events_file, {
+            "ts": _now_iso(), "type": "funnel", "stage": stage,
+            "user_id": user_id, "cohort": cohort, **extra,
+        })
+
     def log_crisis_event(self, pattern: str) -> None:
         """Record that a crisis redirect fired. Timestamp and pattern only.
 

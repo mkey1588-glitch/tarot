@@ -30,7 +30,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
-from bot import prompts_ja
+from bot import funnel, payments, prompts_ja
 from bot.config import Config, load_env
 from bot.cost import BudgetGuard
 from bot.line_api import LineTransport, parse_events, verify_signature
@@ -44,6 +44,7 @@ logger = logging.getLogger("uranai.app")
 
 HELP_COMMANDS = {"ヘルプ", "help", "使い方"}
 DAILY_COMMANDS = {"今日の運勢", "今日", "運勢"}
+DEEP_COMMANDS = {"詳しく", "詳細"}
 
 
 def create_app(config: Optional[Config] = None,
@@ -129,6 +130,19 @@ def create_app(config: Optional[Config] = None,
             "prompts_are_placeholders": prompts_ja.PROMPTS_ARE_PLACEHOLDERS,
         }
 
+    @app.get("/admin/funnel", dependencies=[Depends(require_admin)])
+    def admin_funnel():
+        """The Phase 0 number, or an honest statement that we do not have it.
+
+        Behind the admin token because it is commercially sensitive and
+        because it identifies users by id.
+        """
+        return {
+            **funnel.report(storage),
+            "payments_enabled": payments.enabled_for(config),
+            "blocking_gates": payments.blocking_gates(config),
+        }
+
     @app.get("/admin/review-queue", dependencies=[Depends(require_admin)])
     def admin_review_queue():
         """Boundary charts waiting for a person. Contains birth data."""
@@ -154,6 +168,7 @@ def _handle_event(app: FastAPI, event: dict) -> None:
     if event_type == "follow":
         storage.upsert_user(user_id, {"followed_at": datetime.now(JST).isoformat()})
         storage.log_event("follow")
+        funnel.record(storage, funnel.Stage.FOLLOWED, user_id)
         transport.reply(reply_token,
                         canned(Msg.WELCOME, limit=config.free_tier_limit))
         return
@@ -187,6 +202,10 @@ def _handle_text(app: FastAPI, user_id: str, reply_token: str,
                         canned(Msg.HELP, limit=config.free_tier_limit))
         return
 
+    if text in DEEP_COMMANDS:
+        _handle_checkout(app, user_id, reply_token)
+        return
+
     # A message that is only birth data is registration, not a question.
     # Anything else is passed through to the pipeline, which screens it —
     # so a crisis message inside a birthday-shaped string is still screened,
@@ -196,6 +215,8 @@ def _handle_text(app: FastAPI, user_id: str, reply_token: str,
         storage.upsert_user(user_id, birth.to_record())
         storage.log_event("birth_data_registered",
                           {"hour_known": birth.hour_known})
+        funnel.record(storage, funnel.Stage.REGISTERED, user_id,
+                      hour_known=birth.hour_known)
         transport.reply(reply_token, canned(
             Msg.BIRTH_DATA_SAVED,
             birth_summary=birth.summary(),
@@ -208,6 +229,34 @@ def _handle_text(app: FastAPI, user_id: str, reply_token: str,
 
     outcome = service.generate(user_id, text, birth=stored, kind=kind)
     transport.reply(reply_token, outcome.message)
+
+
+def _handle_checkout(app: FastAPI, user_id: str, reply_token: str) -> None:
+    """The user asked for the paid reading.
+
+    Refuses unless every launch gate is met. Taking ¥300 for a reading
+    written by an engineer, with no 特商法 notice and no legal review, is not
+    a pricing experiment — see bot/payments.py.
+    """
+    storage: Storage = app.state.storage
+    transport: Transport = app.state.transport
+    config: Config = app.state.config
+
+    if not payments.enabled_for(config):
+        logger.info("checkout requested but gates not met: %s",
+                    ", ".join(payments.blocking_gates(config)))
+        transport.reply(reply_token, canned(Msg.PAYMENT_UNAVAILABLE))
+        return
+
+    provider = payments.provider_for(config)
+    checkout = provider.create_checkout(
+        user_id, config.deep_reading_price_jpy, "深層鑑定 1回")
+    storage.log_event("checkout_created", {"provider": provider.name})
+    funnel.record(storage, funnel.Stage.CHECKOUT_STARTED, user_id,
+                  provider=provider.name)
+    transport.reply(reply_token, canned(
+        Msg.CHECKOUT_HANDOFF, url=checkout.url,
+        price=config.deep_reading_price_jpy))
 
 
 def _is_registration(text: str) -> bool:

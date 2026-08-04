@@ -270,3 +270,42 @@ def test_the_review_queue_is_served_with_a_token(client):
                           headers={"X-Admin-Token": "test-admin-token"})
     assert response.status_code == 200
     assert response.json() == {"open": []}
+
+
+# --- The Phase 0 funnel ----------------------------------------------------
+
+def test_the_funnel_records_a_users_journey(client, store):
+    from bot import funnel
+    signed(client, {"events": [{"type": "follow", "replyToken": "t",
+                                "source": {"type": "user", "userId": "U1"}}]})
+    signed(client, text_event("1990-05-15 07:30"))
+    signed(client, text_event("恋愛運を教えてください"))
+
+    counted = funnel.counts(store)
+    assert counted["followed"] == 1
+    assert counted["registered"] == 1
+    assert counted["free_reading"] == 1
+    assert counted["paywall_shown"] == 0     # not permitted to sell yet
+
+
+def test_asking_for_the_paid_reading_is_refused_while_gated(client, transport,
+                                                            store):
+    from bot import funnel
+    signed(client, text_event("詳しく"))
+    assert transport.texts[-1] == TEMPLATES[Msg.PAYMENT_UNAVAILABLE]
+    assert funnel.counts(store)["checkout_started"] == 0
+
+
+def test_the_funnel_report_needs_the_admin_token(client):
+    assert client.get("/admin/funnel").status_code == 401
+
+
+def test_the_funnel_report_says_it_has_no_answer_yet(client):
+    """A conversion rate of 0% and 'nobody has been asked' are different
+    claims. Phase 0 is at the second one and the report must say so."""
+    body = client.get("/admin/funnel",
+                      headers={"X-Admin-Token": "test-admin-token"}).json()
+    assert body["headline"] == "paid_of_offered"
+    assert body["overall"]["rates"]["paid_of_offered"] is None
+    assert body["payments_enabled"] is False
+    assert "prompts_written" in body["blocking_gates"]

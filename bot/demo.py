@@ -758,6 +758,9 @@ def create_demo_app(config: Optional[Config] = None,
         trace = ReadingTrace()
 
         # The real pipeline. Nothing about this call is demo-specific.
+        # The cohort travels with the reading, so board clicks and seed
+        # traffic land in different columns of the funnel.
+        service.cohort = session.get("cohort", "demo")
         outcome = service.generate(session["user_id"], question, birth=birth,
                                    tier=tier, trace=trace)
 

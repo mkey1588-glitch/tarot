@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from typing import Optional
 
-from bot import prompts_ja
+from bot import funnel, payments, prompts_ja
 from bot.chart_service import ManualReviewRequired, build_payload, format_for_prompt
 from bot.cost import BudgetExceeded
 from bot.llm import ModelGateway, ModelUnavailable, ScreenedPrompt
@@ -181,10 +181,14 @@ class ReadingTrace:
 
 
 class ReadingService:
-    def __init__(self, storage: Storage, gateway: ModelGateway, config):
+    def __init__(self, storage: Storage, gateway: ModelGateway, config,
+                 cohort: str = "line"):
         self.storage = storage
         self.gateway = gateway
         self.config = config
+        # Board traffic and seed traffic are different populations; averaging
+        # them produces a conversion number that describes nobody.
+        self.cohort = cohort
 
     def generate(self, user_id: str, text: str,
                  birth: Optional[BirthData] = None,
@@ -220,10 +224,26 @@ class ReadingService:
             return ReadingOutcome(canned(Msg.NEED_BIRTH_DATA_FIRST),
                                   "no_birth_data")
 
-        # 3. Free-tier quota.
+        # 3. Free-tier quota. Running out is where the Phase 0 question gets
+        #    asked: the user is offered the paid reading rather than simply
+        #    turned away. Rule 1 constrains that offer — see messages_ja.
         if tier == "free" and not self.storage.consume_free_quota(
                 user_id, self.config.free_tier_limit):
-            return ReadingOutcome(canned(Msg.QUOTA_EXHAUSTED), "quota_exhausted")
+            if not payments.enabled_for(self.config):
+                # Offering a paid reading we are not permitted to sell would
+                # be advertising a product that does not exist, and it would
+                # put PAYWALL_SHOWN in the funnel for people who were never
+                # really asked — making the one number Phase 0 exists to
+                # produce a fiction. Say the free tier is done, and nothing
+                # more, until the gates are met.
+                return ReadingOutcome(canned(Msg.QUOTA_EXHAUSTED),
+                                      "quota_exhausted")
+            funnel.record(self.storage, funnel.Stage.PAYWALL_SHOWN, user_id,
+                          self.cohort)
+            return ReadingOutcome(
+                canned(Msg.PAYWALL_OFFER,
+                       price=self.config.deep_reading_price_jpy),
+                "paywall_shown")
 
         if trace is not None:
             trace.quota_remaining = self.storage.free_quota_remaining(
@@ -304,6 +324,10 @@ class ReadingService:
         self.storage.log_event("reading_delivered",
                                {"tier": tier, "kind": kind,
                                 "hour_known": birth.hour_known})
+        funnel.record(self.storage,
+                      funnel.Stage.PAID if tier == "paid"
+                      else funnel.Stage.FREE_READING,
+                      user_id, self.cohort)
         return ReadingOutcome(message, "delivered",
                               cost_usd=completion.cost_usd)
 

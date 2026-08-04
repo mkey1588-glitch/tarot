@@ -141,6 +141,9 @@ def test_every_parameterised_message_renders_with_its_arguments():
                                      birth_summary="1990-05-15",
                                      time_note="時刻は不明として承ります。"),
         Msg.MANUAL_REVIEW: canned(Msg.MANUAL_REVIEW, review_id="abc123"),
+        Msg.PAYWALL_OFFER: canned(Msg.PAYWALL_OFFER, price=300),
+        Msg.CHECKOUT_HANDOFF: canned(Msg.CHECKOUT_HANDOFF, price=300,
+                                     url="https://example.invalid/c/1"),
     }
     for message, out in rendered.items():
         assert "{" not in out.text and "}" not in out.text, message.name

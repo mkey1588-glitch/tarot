@@ -103,6 +103,37 @@ remove it. That disclosure lives in onboarding and the privacy policy.
 - `/admin/*` requires `ADMIN_TOKEN`. The review queue holds birth data.
   Unset means those endpoints are disabled, not open.
 
+## The Phase 0 number
+
+`GET /admin/funnel` reports it, or says honestly that we do not have it yet.
+
+```
+followed → registered → free_reading → paywall_shown → checkout_started → paid
+```
+
+Counts are **distinct users**, not events — before `bot/funnel.py` no event
+carried an identifier, so the log could say fourteen readings were delivered
+without saying whether that was fourteen people or one person fourteen
+times. Reaching a stage counts you at every earlier one, so a dropped event
+cannot produce negative conversion.
+
+The headline is `paid_of_offered`: of the users actually shown the paywall,
+the share who paid. Read it **per cohort** — board traffic and seed traffic
+are different populations and their average describes nobody. That is what
+the `board:`/`seed:` labels in `DEMO_ACCESS_CODES` are for.
+
+An empty denominator reports `null`, never `0.0`. "Nobody converted" and
+"nobody has been asked" are different claims and Phase 0 is at the second.
+
+**No paywall is shown until every launch gate is met.** Offering a reading we
+may not sell would advertise a product that does not exist, and it would put
+`paywall_shown` in the funnel for people who were never really asked —
+making the one number this phase exists to produce a fiction. Until then a
+user who exhausts the free tier is simply told so.
+
+Funnel events are the only ones carrying a user id. `log_crisis_event` takes
+a pattern and a timestamp and has no parameter that could accept one.
+
 ## Still to do
 
 - [ ] `prompts_ja.py` and `messages_ja.py` — **blocked on the retained
@@ -112,7 +143,10 @@ remove it. That disclosure lives in onboarding and the privacy policy.
 - [ ] Legal review of all user-facing copy (Rule 5). None has had it.
 - [ ] Confirm the two helpline numbers are current (`TODO(legal)` in
       `safety.py`).
-- [ ] Stripe checkout for the single reading.
+- [ ] Stripe checkout. The seam and the gate are in `bot/payments.py`;
+      `StripeProvider` is deliberately the last thing written, because it is
+      the only part that cannot be tested without a real customer and real
+      money. It refuses until all six gates are met.
 - [ ] 特定商取引法 notice — required the moment payment is enabled.
 - [ ] A real operator alert for the manual-review queue. Phase 0 has a queue
       file, a WARNING log and `/admin/review-queue`, which relies on someone

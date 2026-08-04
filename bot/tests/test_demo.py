@@ -168,7 +168,7 @@ def test_the_demo_consumes_the_same_free_quota(client, store):
     for _ in range(3):
         read(client)
     assert store.free_quota_remaining(DEMO_USER, 3) == 0
-    assert "本日分の無料鑑定はここまで" in read(client).text
+    assert "本日分の無料鑑定はここまで" in read(client).text   # not a paywall: we may not sell yet
 
 
 def test_reset_restores_the_quota(client, store):
