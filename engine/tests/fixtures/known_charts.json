@@ -14,25 +14,52 @@
     {
       "label": "mid-month, unambiguous",
       "birth_local": "1990-05-15T14:30:00",
-      "expect": {"year": "庚午", "month": "辛巳", "day": "庚辰", "hour": "癸未",
-                 "solar_year": 1990, "month_term": "立夏"}
+      "expect": {
+        "year": "庚午",
+        "month": "辛巳",
+        "day": "庚辰",
+        "hour": "癸未",
+        "solar_year": 1990,
+        "month_term": "立夏"
+      },
+      "provenance": "UNVERIFIED — source not recorded when added"
     },
     {
       "label": "before 立春 -- solar year is the PREVIOUS year",
       "birth_local": "2000-01-01T00:00:00",
-      "expect": {"year": "己卯", "month": "丙子", "day": "戊午", "hour": "壬子",
-                 "solar_year": 1999, "month_term": "大雪"}
+      "expect": {
+        "year": "己卯",
+        "month": "丙子",
+        "day": "戊午",
+        "hour": "壬子",
+        "solar_year": 1999,
+        "month_term": "大雪"
+      },
+      "provenance": "UNVERIFIED — source not recorded when added"
     },
     {
       "label": "start of a sexagenary cycle, just after 立春",
       "birth_local": "1984-02-05T12:00:00",
-      "expect": {"year": "甲子", "month": "丙寅", "day": "己巳", "hour": "庚午",
-                 "solar_year": 1984, "month_term": "立春"}
+      "expect": {
+        "year": "甲子",
+        "month": "丙寅",
+        "day": "己巳",
+        "hour": "庚午",
+        "solar_year": 1984,
+        "month_term": "立春"
+      },
+      "provenance": "UNVERIFIED — source not recorded when added"
     },
     {
       "label": "day-pillar anchor",
       "birth_local": "2000-01-01T12:00:00",
-      "expect": {"day": "戊午", "solar_year": 1999}
+      "expect": {
+        "day": "戊午",
+        "solar_year": 1999
+      },
+      "provenance": "UNVERIFIED — source not recorded when added"
     }
-  ]
+  ],
+  "_provenance_note": "CLAUDE.md: a fixture captured from our own output is worthless as a test. None of the charts below records where its expected values came from, so we cannot tell whether they were derived by hand or recorded from engine/. Treat them as smoke tests, not as evidence. Gate 1 (the practitioner checking the engine against their own charts) is what replaces them; each chart they confirm should have provenance set to their name and the date. Do not add charts here any other way.",
+  "_independently_verified_elsewhere": "The solar-term boundaries these charts depend on ARE independently verified, against 312 published NAOJ values — see fixtures/naoj_solar_terms.json and engine/tests/test_solar.py. What remains unverified here is the sexagenary arithmetic layered on top."
 }

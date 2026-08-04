@@ -286,3 +286,29 @@ def test_chart_serialises_to_json():
     json.dumps(payload, ensure_ascii=False)
     assert set(payload["pillars"]) == {"year", "month", "day", "hour"}
     assert payload["day_master"]["stem"] == payload["pillars"]["day"]["stem"]
+
+
+# --- Fixture provenance ----------------------------------------------------
+
+def test_every_known_chart_records_where_it_came_from():
+    """A fixture recorded from our own output tests nothing — it asserts that
+    the engine still agrees with itself. CLAUDE.md says so explicitly, so
+    each chart has to carry its source, even when that source is 'unknown'.
+
+    This test does not require the charts to be verified. It requires us to
+    be able to tell which ones are."""
+    for case in FIXTURES["charts"]:
+        assert case.get("provenance"), f"{case['label']} has no provenance"
+
+
+def test_the_unverified_charts_are_labelled_as_such():
+    """Currently all four. This fails the day someone marks one verified, at
+    which point they should be putting the practitioner's name on it — which
+    is the prompt to check that they actually did."""
+    unverified = [c for c in FIXTURES["charts"]
+                  if c["provenance"].startswith("UNVERIFIED")]
+    assert len(unverified) == 4, (
+        "the count changed — if a chart has been verified, its provenance "
+        "should name who verified it and when, and this number should be "
+        "updated deliberately rather than drift"
+    )

@@ -1,0 +1,1635 @@
+{
+ "_source": "National Astronomical Observatory of Japan, 暦計算室 二十四節気・雑節 長期版",
+ "_url": "https://eco.mtk.nao.ac.jp/cgi-bin/koyomi/cande/phenomena_sy.cgi",
+ "_retrieved": "2026-08-05",
+ "_timezone": "JST (UT+9), as returned by the service",
+ "_note": "Independently computed by NAOJ. Nothing here is derived from engine/, which is what makes it a test rather than a recording of our own output.",
+ "_regenerate": "python3 scripts/fetch_naoj_terms.py",
+ "years": {
+  "1970": {
+   "delta_t_seconds": 39.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "1970-01-06T03:02"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "1970-01-20T20:24"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "1970-02-04T14:46"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "1970-02-19T10:42"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "1970-03-06T08:58"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "1970-03-21T09:56"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "1970-04-05T14:02"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "1970-04-20T21:15"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "1970-05-06T07:34"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "1970-05-21T20:37"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "1970-06-06T11:52"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "1970-06-22T04:43"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "1970-07-07T22:11"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "1970-07-23T15:37"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "1970-08-08T07:54"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "1970-08-23T22:34"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "1970-09-08T10:38"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "1970-09-23T19:59"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "1970-10-09T02:02"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "1970-10-24T05:04"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "1970-11-08T04:58"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "1970-11-23T02:25"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "1970-12-07T21:37"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "1970-12-22T15:36"
+    }
+   ]
+  },
+  "1976": {
+   "delta_t_seconds": 46.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "1976-01-06T13:57"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "1976-01-21T07:25"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "1976-02-05T01:39"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "1976-02-19T21:40"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "1976-03-05T19:48"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "1976-03-20T20:50"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "1976-04-05T00:46"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "1976-04-20T08:03"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "1976-05-05T18:14"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "1976-05-21T07:21"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "1976-06-05T22:31"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "1976-06-21T15:24"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "1976-07-07T08:51"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "1976-07-23T02:18"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "1976-08-07T18:38"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "1976-08-23T09:18"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "1976-09-07T21:28"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "1976-09-23T06:48"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "1976-10-08T12:58"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "1976-10-23T15:58"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "1976-11-07T15:59"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "1976-11-22T13:22"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "1976-12-07T08:41"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "1976-12-22T02:35"
+    }
+   ]
+  },
+  "1981": {
+   "delta_t_seconds": 51.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "1981-01-05T19:13"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "1981-01-20T12:36"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "1981-02-04T06:55"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "1981-02-19T02:52"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "1981-03-06T01:05"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "1981-03-21T02:03"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "1981-04-05T06:05"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "1981-04-20T13:19"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "1981-05-05T23:35"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "1981-05-21T12:39"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "1981-06-06T03:53"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "1981-06-21T20:45"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "1981-07-07T14:12"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "1981-07-23T07:40"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "1981-08-07T23:57"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "1981-08-23T14:38"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "1981-09-08T02:43"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "1981-09-23T12:05"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "1981-10-08T18:10"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "1981-10-23T21:13"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "1981-11-07T21:09"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "1981-11-22T18:36"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "1981-12-07T13:51"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "1981-12-22T07:51"
+    }
+   ]
+  },
+  "1985": {
+   "delta_t_seconds": 55.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "1985-01-05T18:35"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "1985-01-20T11:58"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "1985-02-04T06:12"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "1985-02-19T02:07"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "1985-03-06T00:16"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "1985-03-21T01:14"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "1985-04-05T05:14"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "1985-04-20T12:26"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "1985-05-05T22:43"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "1985-05-21T11:43"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "1985-06-06T03:00"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "1985-06-21T19:44"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "1985-07-07T13:19"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "1985-07-23T06:36"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "1985-08-07T23:04"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "1985-08-23T13:36"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "1985-09-08T01:53"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "1985-09-23T11:07"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "1985-10-08T17:25"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "1985-10-23T20:22"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "1985-11-07T20:29"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "1985-11-22T17:51"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "1985-12-07T13:16"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "1985-12-22T07:08"
+    }
+   ]
+  },
+  "1986": {
+   "delta_t_seconds": 56.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "1986-01-06T00:28"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "1986-01-20T17:46"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "1986-02-04T12:08"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "1986-02-19T07:57"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "1986-03-06T06:12"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "1986-03-21T07:03"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "1986-04-05T11:06"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "1986-04-20T18:12"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "1986-05-06T04:31"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "1986-05-21T17:28"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "1986-06-06T08:44"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "1986-06-22T01:30"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "1986-07-07T19:01"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "1986-07-23T12:24"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "1986-08-08T04:46"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "1986-08-23T19:26"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "1986-09-08T07:35"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "1986-09-23T16:59"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "1986-10-08T23:07"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "1986-10-24T02:14"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "1986-11-08T02:13"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "1986-11-22T23:44"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "1986-12-07T19:01"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "1986-12-22T13:02"
+    }
+   ]
+  },
+  "1990": {
+   "delta_t_seconds": 57.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "1990-01-05T23:33"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "1990-01-20T17:02"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "1990-02-04T11:14"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "1990-02-19T07:14"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "1990-03-06T05:19"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "1990-03-21T06:19"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "1990-04-05T10:13"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "1990-04-20T17:27"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "1990-05-06T03:35"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "1990-05-21T16:37"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "1990-06-06T07:46"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "1990-06-22T00:33"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "1990-07-07T18:00"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "1990-07-23T11:22"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "1990-08-08T03:46"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "1990-08-23T18:21"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "1990-09-08T06:37"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "1990-09-23T15:55"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "1990-10-08T22:14"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "1990-10-24T01:14"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "1990-11-08T01:23"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "1990-11-22T22:47"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "1990-12-07T18:14"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "1990-12-22T12:07"
+    }
+   ]
+  },
+  "1996": {
+   "delta_t_seconds": 62.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "1996-01-06T10:31"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "1996-01-21T03:52"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "1996-02-04T22:08"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "1996-02-19T18:01"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "1996-03-05T16:10"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "1996-03-20T17:03"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "1996-04-04T21:02"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "1996-04-20T04:10"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "1996-05-05T14:26"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "1996-05-21T03:23"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "1996-06-05T18:41"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "1996-06-21T11:24"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "1996-07-07T05:00"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "1996-07-22T22:19"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "1996-08-07T14:49"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "1996-08-23T05:23"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "1996-09-07T17:42"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "1996-09-23T03:00"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "1996-10-08T09:19"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "1996-10-23T12:19"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "1996-11-07T12:27"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "1996-11-22T09:49"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "1996-12-07T05:14"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "1996-12-21T23:06"
+    }
+   ]
+  },
+  "2000": {
+   "delta_t_seconds": 64.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "2000-01-06T10:01"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "2000-01-21T03:23"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "2000-02-04T21:40"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "2000-02-19T17:33"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "2000-03-05T15:43"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "2000-03-20T16:35"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "2000-04-04T20:32"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "2000-04-20T03:40"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "2000-05-05T13:50"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "2000-05-21T02:49"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "2000-06-05T17:59"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "2000-06-21T10:48"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "2000-07-07T04:14"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "2000-07-22T21:43"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "2000-08-07T14:03"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "2000-08-23T04:49"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "2000-09-07T16:59"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "2000-09-23T02:28"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "2000-10-08T08:38"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "2000-10-23T11:47"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "2000-11-07T11:48"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "2000-11-22T09:19"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "2000-12-07T04:37"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "2000-12-21T22:37"
+    }
+   ]
+  },
+  "2004": {
+   "delta_t_seconds": 65.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "2004-01-06T09:19"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "2004-01-21T02:42"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "2004-02-04T20:56"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "2004-02-19T16:50"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "2004-03-05T14:56"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "2004-03-20T15:49"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "2004-04-04T19:43"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "2004-04-20T02:50"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "2004-05-05T13:02"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "2004-05-21T01:59"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "2004-06-05T17:14"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "2004-06-21T09:57"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "2004-07-07T03:31"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "2004-07-22T20:50"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "2004-08-07T13:20"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "2004-08-23T03:53"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "2004-09-07T16:13"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "2004-09-23T01:30"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "2004-10-08T07:49"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "2004-10-23T10:49"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "2004-11-07T10:59"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "2004-11-22T08:22"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "2004-12-07T03:49"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "2004-12-21T21:42"
+    }
+   ]
+  },
+  "2005": {
+   "delta_t_seconds": 65.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "2005-01-05T15:03"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "2005-01-20T08:22"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "2005-02-04T02:43"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "2005-02-18T22:32"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "2005-03-05T20:45"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "2005-03-20T21:33"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "2005-04-05T01:34"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "2005-04-20T08:37"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "2005-05-05T18:53"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "2005-05-21T07:47"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "2005-06-05T23:02"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "2005-06-21T15:46"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "2005-07-07T09:17"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "2005-07-23T02:41"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "2005-08-07T19:03"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "2005-08-23T09:45"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "2005-09-07T21:57"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "2005-09-23T07:23"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "2005-10-08T13:33"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "2005-10-23T16:42"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "2005-11-07T16:42"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "2005-11-22T14:15"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "2005-12-07T09:33"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "2005-12-22T03:35"
+    }
+   ]
+  },
+  "2015": {
+   "delta_t_seconds": 68.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "2015-01-06T01:21"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "2015-01-20T18:43"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "2015-02-04T12:58"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "2015-02-19T08:50"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "2015-03-06T06:56"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "2015-03-21T07:45"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "2015-04-05T11:39"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "2015-04-20T18:42"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "2015-05-06T04:53"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "2015-05-21T17:45"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "2015-06-06T08:58"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "2015-06-22T01:38"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "2015-07-07T19:12"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "2015-07-23T12:30"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "2015-08-08T05:01"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "2015-08-23T19:37"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "2015-09-08T08:00"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "2015-09-23T17:21"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "2015-10-08T23:43"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "2015-10-24T02:47"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "2015-11-08T02:59"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "2015-11-23T00:25"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "2015-12-07T19:53"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "2015-12-22T13:48"
+    }
+   ]
+  },
+  "2024": {
+   "delta_t_seconds": 69.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "2024-01-06T05:49"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "2024-01-20T23:07"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "2024-02-04T17:27"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "2024-02-19T13:13"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "2024-03-05T11:23"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "2024-03-20T12:06"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "2024-04-04T16:02"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "2024-04-19T23:00"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "2024-05-05T09:10"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "2024-05-20T22:00"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "2024-06-05T13:10"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "2024-06-21T05:51"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "2024-07-06T23:20"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "2024-07-22T16:44"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "2024-08-07T09:09"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "2024-08-22T23:55"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "2024-09-07T12:11"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "2024-09-22T21:44"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "2024-10-08T04:00"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "2024-10-23T07:15"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "2024-11-07T07:20"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "2024-11-22T04:56"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "2024-12-07T00:17"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "2024-12-21T18:21"
+    }
+   ]
+  },
+  "2025": {
+   "delta_t_seconds": 69.0,
+   "terms": [
+    {
+     "term": "小寒",
+     "longitude_deg": 285,
+     "jst": "2025-01-05T11:33"
+    },
+    {
+     "term": "大寒",
+     "longitude_deg": 300,
+     "jst": "2025-01-20T05:00"
+    },
+    {
+     "term": "立春",
+     "longitude_deg": 315,
+     "jst": "2025-02-03T23:10"
+    },
+    {
+     "term": "雨水",
+     "longitude_deg": 330,
+     "jst": "2025-02-18T19:07"
+    },
+    {
+     "term": "啓蟄",
+     "longitude_deg": 345,
+     "jst": "2025-03-05T17:07"
+    },
+    {
+     "term": "春分",
+     "longitude_deg": 0,
+     "jst": "2025-03-20T18:01"
+    },
+    {
+     "term": "清明",
+     "longitude_deg": 15,
+     "jst": "2025-04-04T21:49"
+    },
+    {
+     "term": "穀雨",
+     "longitude_deg": 30,
+     "jst": "2025-04-20T04:56"
+    },
+    {
+     "term": "立夏",
+     "longitude_deg": 45,
+     "jst": "2025-05-05T14:57"
+    },
+    {
+     "term": "小満",
+     "longitude_deg": 60,
+     "jst": "2025-05-21T03:55"
+    },
+    {
+     "term": "芒種",
+     "longitude_deg": 75,
+     "jst": "2025-06-05T18:57"
+    },
+    {
+     "term": "夏至",
+     "longitude_deg": 90,
+     "jst": "2025-06-21T11:42"
+    },
+    {
+     "term": "小暑",
+     "longitude_deg": 105,
+     "jst": "2025-07-07T05:05"
+    },
+    {
+     "term": "大暑",
+     "longitude_deg": 120,
+     "jst": "2025-07-22T22:29"
+    },
+    {
+     "term": "立秋",
+     "longitude_deg": 135,
+     "jst": "2025-08-07T14:52"
+    },
+    {
+     "term": "処暑",
+     "longitude_deg": 150,
+     "jst": "2025-08-23T05:34"
+    },
+    {
+     "term": "白露",
+     "longitude_deg": 165,
+     "jst": "2025-09-07T17:52"
+    },
+    {
+     "term": "秋分",
+     "longitude_deg": 180,
+     "jst": "2025-09-23T03:19"
+    },
+    {
+     "term": "寒露",
+     "longitude_deg": 195,
+     "jst": "2025-10-08T09:41"
+    },
+    {
+     "term": "霜降",
+     "longitude_deg": 210,
+     "jst": "2025-10-23T12:51"
+    },
+    {
+     "term": "立冬",
+     "longitude_deg": 225,
+     "jst": "2025-11-07T13:04"
+    },
+    {
+     "term": "小雪",
+     "longitude_deg": 240,
+     "jst": "2025-11-22T10:36"
+    },
+    {
+     "term": "大雪",
+     "longitude_deg": 255,
+     "jst": "2025-12-07T06:05"
+    },
+    {
+     "term": "冬至",
+     "longitude_deg": 270,
+     "jst": "2025-12-22T00:03"
+    }
+   ]
+  }
+ }
+}

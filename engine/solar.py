@@ -16,9 +16,20 @@ ACCURACY, STATED HONESTLY
 -------------------------
 The low-precision series is good to roughly 0.01 degrees. The Sun moves
 about 0.9856 degrees per day, so 0.01 degrees is about 15 minutes of clock
-time. Spot checks against published National Astronomical Observatory of
-Japan values land within about 6 minutes, but 15 minutes is the number to
-design against.
+time, and 15 minutes is the number to design against.
+
+Measured, rather than assumed: against 312 solar-term times published by the
+National Astronomical Observatory of Japan across 1970-2025, the mean error
+is about 4 minutes and the worst case 14.2 minutes. Restricted to the twelve
+sectional terms — the only ones that move a pillar — the worst case is 9.2
+minutes. Accuracy does not degrade in the 1961-1985 and 1986-2004 Delta-T
+branches, which is where users aged 30-50 were born.
+
+An earlier version of this paragraph claimed spot checks landed "within
+about 6 minutes". That was true of the average and wrong about the tail, and
+it was written before anything checked more than two dates. The fixture and
+the tests that produced these figures are in engine/tests/; regenerate with
+`python3 scripts/fetch_naoj_terms.py`.
 
 That is far tighter than the birth times most users can report accurately,
 and irrelevant for the overwhelming majority of charts. It is NOT good
