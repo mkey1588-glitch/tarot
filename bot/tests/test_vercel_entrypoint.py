@@ -13,6 +13,7 @@ import sysconfig
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ENTRYPOINT = ROOT / "api" / "index.py"
@@ -170,3 +171,87 @@ def test_there_is_no_catch_all_rewrite():
             "path, so every route 404s. Vercel routes to the entrypoint on "
             "its own."
         )
+
+
+# --- Failing legibly on a serverless host ---------------------------------
+
+@pytest.fixture
+def entrypoint(monkeypatch):
+    """Build api/index.py fresh under a chosen environment.
+
+    Config is read at import, so the module has to be re-imported for each
+    case. Only `api.*` is cleared — nothing under `bot.` caches env.
+    """
+    import sys
+
+    def build(**env):
+        for key in ("DEMO_ACCESS_CODES", "DEMO_SESSION_SECRET", "VERCEL",
+                    "OPENAI_API_KEY"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        for name in [n for n in list(sys.modules) if n.startswith("api")]:
+            del sys.modules[name]
+        import api.index
+        return TestClient(api.index.app)
+
+    yield build
+    for name in [n for n in list(sys.modules) if n.startswith("api")]:
+        del sys.modules[name]
+
+
+def test_a_missing_variable_explains_itself_rather_than_crashing(entrypoint):
+    """An exception at import becomes FUNCTION_INVOCATION_FAILED: a 500 with
+    no message, identical for a missing variable and a genuine bug, readable
+    only by someone who knows to open the platform's log viewer."""
+    client = entrypoint(VERCEL="1")
+    response = client.get("/")
+    assert response.status_code == 503
+    assert "DEMO_ACCESS_CODES" in response.text
+
+
+def test_the_diagnostic_answers_on_every_path(entrypoint):
+    """Whichever URL the operator happens to open."""
+    client = entrypoint(VERCEL="1")
+    for path in ("/", "/health", "/privacy", "/readiness", "/anything"):
+        assert client.get(path).status_code == 503
+
+
+def test_a_misconfigured_deployment_serves_no_reading(entrypoint):
+    """The refusal still holds. It is only the reporting that changed."""
+    body = entrypoint(VERCEL="1").get("/").text
+    assert "恋愛運" not in body
+    assert "アクセスコード" not in body     # not even the gate
+
+
+def test_it_distinguishes_which_variable_is_missing(entrypoint):
+    """Setting one of two and not noticing is the likely mistake — Vercel
+    scopes variables per environment, so 'I added it' and 'production has
+    it' are different claims."""
+    body = entrypoint(VERCEL="1", DEMO_ACCESS_CODES="board:x").get("/").text
+    assert "<code>DEMO_ACCESS_CODES</code> — set" in body
+    assert "DEMO_SESSION_SECRET</code> — <b>not set</b>" in body
+
+
+def test_the_diagnostic_never_echoes_a_value(entrypoint):
+    """It is a public page. Names, never values."""
+    body = entrypoint(VERCEL="1", DEMO_ACCESS_CODES="board:s3cret-code").get("/").text
+    assert "s3cret-code" not in body
+
+
+def test_a_configured_deployment_serves_the_real_demo(entrypoint):
+    client = entrypoint(VERCEL="1", DEMO_ACCESS_CODES="board:x",
+                        DEMO_SESSION_SECRET="secret")
+    assert client.get("/health").status_code == 200
+    assert client.get("/health").json()["model"] == "stub"
+    assert "アクセスコード" in client.get("/").text
+
+
+def test_a_configured_deployment_still_gates_access(entrypoint):
+    """The whole point of the variables it was refusing without."""
+    client = entrypoint(VERCEL="1", DEMO_ACCESS_CODES="board:x",
+                        DEMO_SESSION_SECRET="secret")
+    assert "恋愛運" not in client.get("/").text
+    client.post("/enter", headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={"code": "x"})
+    assert "恋愛運" in client.get("/").text

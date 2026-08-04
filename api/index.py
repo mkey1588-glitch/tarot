@@ -38,11 +38,83 @@ Required environment variables in the Vercel project:
     DEMO_SESSION_SECRET   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 """
 
+import logging
+import os
+
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+
 from bot.config import Config
-from bot.demo import create_demo_app
+from bot.demo import NotShareable, create_demo_app
 
-_config = Config.from_env()
+logger = logging.getLogger("uranai.vercel")
 
-# shared=True unconditionally. This file only ever runs because a platform
-# imported it, and that means the page is on the internet.
-app = create_demo_app(_config, live=False, shared=True)
+REQUIRED = ("DEMO_ACCESS_CODES", "DEMO_SESSION_SECRET")
+
+
+def _misconfigured(summary: str, detail: str) -> FastAPI:
+    """A deployment that will not serve the demo, and says why.
+
+    `create_demo_app` refuses by raising, which is right at a terminal where
+    the traceback is in front of you. On a serverless platform an exception
+    at import becomes FUNCTION_INVOCATION_FAILED — a 500 with no message,
+    identical for a missing variable and a genuine bug, and readable only by
+    someone who knows to open the platform's log viewer.
+
+    So the refusal still holds — nothing below serves a reading, and the
+    access gate is not bypassed — but it explains itself at the URL the
+    operator is already looking at. 503, so no monitor mistakes it for
+    working.
+
+    Only variable *names* appear here, never values.
+    """
+    missing = [name for name in REQUIRED if not os.getenv(name)]
+    logger.error("refusing to start: %s", summary)
+
+    fallback = FastAPI(title="AI Uranai — misconfigured")
+
+    @fallback.get("/{_path:path}", response_class=HTMLResponse)
+    def explain(_path: str = ""):
+        rows = "".join(
+            f"<li><code>{name}</code> — "
+            + ("<b>not set</b>" if name in missing else "set")
+            + "</li>"
+            for name in REQUIRED
+        )
+        return HTMLResponse(status_code=503, content=f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Not configured</title>
+<style>body{{font:15px/1.7 -apple-system,BlinkMacSystemFont,sans-serif;
+max-width:640px;margin:12vh auto;padding:0 24px;color:#1c1b19}}
+code{{background:#f0eeea;padding:1px 5px;border-radius:4px}}
+h1{{font-size:19px}} .why{{color:#6b6862;font-size:14px}}</style></head>
+<body>
+<h1>This deployment is not configured, so it is not serving anything.</h1>
+<p>{summary}</p>
+<ul>{rows}</ul>
+<p class="why">{detail}</p>
+<p class="why">Set the missing variables in the platform's environment
+settings — for all environments, not just Preview — and redeploy. Nothing is
+served until then: this page collects birth dates, and an unconfigured
+deployment would have no access gate.</p>
+</body></html>""")
+
+    return fallback
+
+
+try:
+    _config = Config.from_env()
+    # shared=True unconditionally. This file only ever runs because a
+    # platform imported it, and that means the page is on the internet.
+    app = create_demo_app(_config, live=False, shared=True)
+except NotShareable as refusal:
+    app = _misconfigured(str(refusal),
+                         "This is the deployment refusing to start, not a "
+                         "crash. It is deliberate.")
+except Exception as exc:  # pragma: no cover - genuine startup bug
+    # Not expected. Report the type only: an exception message can carry
+    # configuration values, and this page is public.
+    app = _misconfigured(
+        f"Startup failed with {type(exc).__name__}.",
+        "This one is a bug rather than a missing setting. The platform's "
+        "function log has the traceback.")
