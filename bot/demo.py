@@ -36,11 +36,15 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import base64
+import hashlib
+import hmac
 import html
 import logging
 import secrets
 import shutil
 import tempfile
+import time
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -68,37 +72,71 @@ class NotShareable(RuntimeError):
     """Raised rather than serving the demo to the internet without a gate."""
 
 
+SESSION_TTL_SECONDS = 12 * 60 * 60
+
+
 class Sessions:
-    """Per-visitor sessions, held in memory.
+    """Per-visitor sessions, carried in a signed cookie rather than in memory.
 
-    Opaque 256-bit tokens, kept server-side. Restarting the process logs
-    everyone out, which is the correct trade for a demo: no session state
-    outlives the deployment, and there is nothing to leak at rest.
+    Stateless on purpose. A server-side dict works on one long-lived
+    container and fails everywhere else: on any platform that runs several
+    instances, or recycles them between requests, a visitor's session lands
+    on an instance that has never heard of it and they are silently logged
+    out — which, since sessions are what enforce the access code, means the
+    gate stops working rather than merely annoying people.
 
-    Each visitor gets their own user id, so the free-tier quota is per
-    person rather than shared, and one board member cannot exhaust another's.
+    The cookie carries the cohort and a per-visitor id, signed with
+    `DEMO_SESSION_SECRET`. It is signed, not encrypted: nothing in it is
+    secret, and the only thing that must not be forgeable is the claim to
+    have entered a valid code.
+
+    Without a configured secret one is generated per process, which is fine
+    for a single container and useless across instances. `create_demo_app`
+    refuses that combination on an ephemeral host rather than shipping a
+    gate that opens at random.
     """
 
-    def __init__(self):
-        self._sessions: Dict[str, dict] = {}
+    def __init__(self, secret: Optional[str] = None):
+        self.secret = (secret or secrets.token_urlsafe(32)).encode("utf-8")
+        self.generated_secret = secret is None
+
+    def _sign(self, payload: bytes) -> str:
+        digest = hmac.new(self.secret, payload, hashlib.sha256).digest()
+        return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
     def create(self, cohort: str) -> str:
-        token = secrets.token_urlsafe(32)
-        self._sessions[token] = {
-            "cohort": cohort,
-            "created_at": datetime.now(JST).isoformat(),
-            # Derived from the token, never the token itself: this reaches
-            # the event log, and a log that carries session tokens is a log
-            # that can impersonate the people in it.
-            "user_id": f"demo:{cohort}:{secrets.token_hex(6)}",
-        }
-        return token
+        expires = int(time.time()) + SESSION_TTL_SECONDS
+        # The visitor id is random and carried in the cookie, so it is stable
+        # for that person across instances and restarts. It is not derived
+        # from the signature: this id reaches the event log, and a log that
+        # carries anything reconstructible into a session token is a log that
+        # can impersonate the people in it.
+        visitor = secrets.token_hex(6)
+        payload = f"{cohort}|{expires}|{visitor}".encode("utf-8")
+        encoded = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+        return f"{encoded}.{self._sign(payload)}"
 
     def get(self, token: Optional[str]) -> Optional[dict]:
-        return self._sessions.get(token or "")
+        if not token or "." not in token:
+            return None
+        encoded, _, signature = token.partition(".")
+        try:
+            padding = "=" * (-len(encoded) % 4)
+            payload = base64.urlsafe_b64decode(encoded + padding)
+        except (ValueError, TypeError):
+            return None
 
-    def __len__(self) -> int:
-        return len(self._sessions)
+        if not hmac.compare_digest(self._sign(payload), signature):
+            return None
+
+        try:
+            cohort, expires, visitor = payload.decode("utf-8").split("|")
+            if int(expires) < time.time():
+                return None
+        except (ValueError, UnicodeDecodeError):
+            return None
+
+        return {"cohort": cohort, "user_id": f"demo:{cohort}:{visitor}"}
 
 ELEMENT_CLASS = {"木": "wood", "火": "fire", "土": "earth",
                  "金": "metal", "水": "water"}
@@ -266,6 +304,19 @@ def privacy_notice(config: Config) -> str:
     persist = ("この配備ではデータをディスクに保存します。"
                if config.demo_persist else
                "この配備では、入力内容はプロセスの再起動で消えます。")
+
+    # On an ephemeral host the review queue does not survive the request that
+    # wrote it, so the standing promise that a person will follow up is not
+    # one this deployment can keep. Say so rather than leave it standing.
+    if config.ephemeral_filesystem:
+        review_note = ("<b>この配備は検証用のため、</b>節気の境界にあたる命式の"
+                       "控えも保持されません。後日の連絡はできませんので、"
+                       "その場合はお手数ですが直接ご連絡ください。")
+    else:
+        review_note = ("<b>節気の境界にあたる命式のみ、</b>"
+                       "人が確認するための控えに生年月日が記録されます。"
+                       "自動では鑑定を出さないためで、この控えは上記の"
+                       "保存方針に従います。")
     return f"""
 <div class="card" style="max-width:720px">
   <h2>個人情報の扱い（デモ）</h2>
@@ -274,9 +325,7 @@ def privacy_notice(config: Config) -> str:
   <div class="stage"><span class="what"><b>ご相談の文面は保存しません。</b>
     危機的な表現を検知した場合も、記録するのは「どのパターンが反応したか」と
     時刻だけです。本文もセッションの識別子も残しません。</span></div>
-  <div class="stage"><span class="what"><b>節気の境界にあたる命式のみ、</b>
-    人が確認するための控えに生年月日が記録されます。自動では鑑定を出さない
-    ためで、この控えは上記の保存方針に従います。</span></div>
+  <div class="stage"><span class="what">{review_note}</span></div>
   <div class="stage"><span class="what"><b>鑑定文は AI が生成します。</b>
     すべての鑑定文にその旨を表示します。</span></div>
   <div class="stage"><span class="what"><b>これは試作です。</b>
@@ -560,8 +609,40 @@ def create_demo_app(config: Optional[Config] = None,
             'birth dates. Set e.g. DEMO_ACCESS_CODES="board:<code>".'
         )
 
+    if config.ephemeral_filesystem:
+        # The budget guard sums month-to-date spend out of the usage log. On
+        # a host where that log does not survive between requests it reads
+        # $0 for ever, so MONTHLY_LLM_BUDGET_USD stops being a cap and
+        # becomes a decoration — precisely the failure CLAUDE.md's cost rule
+        # exists to prevent.
+        #
+        # Rather than pretend, spending is made impossible: no billable model
+        # here, at all. The cap holds because nothing can be spent, which is
+        # a guarantee we can actually keep on this class of platform.
+        if live:
+            raise NotShareable(
+                "refusing to run a billable model on an ephemeral "
+                "filesystem. MONTHLY_LLM_BUDGET_USD is enforced by summing "
+                "data/llm_usage.jsonl, which does not survive between "
+                "requests here, so the cap would silently stop capping. Use "
+                "the stub model, or deploy somewhere with a real disk — see "
+                "docs/DEPLOY.md."
+            )
+        if shared and not config.demo_session_secret:
+            raise NotShareable(
+                "refusing to share on an ephemeral filesystem without "
+                "DEMO_SESSION_SECRET. Each instance would sign session "
+                "cookies with a different generated key, so visitors would "
+                "be logged out at random — and the session is what enforces "
+                "the access code. Generate one with: "
+                "python3 -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+
     if storage is None:
-        if shared and not config.demo_persist:
+        if config.ephemeral_filesystem:
+            # The only writable path on most of these platforms.
+            storage = Storage(tempfile.mkdtemp(prefix="uranai-demo-"))
+        elif shared and not config.demo_persist:
             # Nothing a visitor types survives the process. The only birth
             # data written at all is a boundary chart's review-queue entry;
             # see the privacy notice.
@@ -588,7 +669,7 @@ def create_demo_app(config: Optional[Config] = None,
         )
 
     app = FastAPI(title="AI Uranai — demo")
-    sessions = Sessions()
+    sessions = Sessions(config.demo_session_secret)
     app.state.sessions = sessions
 
     warning = startup_warning()

@@ -1,0 +1,9 @@
+# Present so Vercel can find the ASGI app. The project is otherwise plain
+# setuptools-free: requirements.txt is the dependency source of truth, and
+# engine/ deliberately has no dependencies at all.
+
+[tool.vercel]
+# api/index.py, NOT bot/app.py. Vercel's autodetection suggests bot.app:app
+# because it finds a name called `app` there, but that module is the LINE
+# webhook and the name is None on purpose so it imports without credentials.
+entrypoint = "api.index:app"

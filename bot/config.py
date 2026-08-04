@@ -128,6 +128,19 @@ class Config:
     # Whether the shared demo keeps anything on disk between restarts.
     demo_persist: bool = False
 
+    # Signs the session cookie. Sessions are stateless so they survive a
+    # restart and work across instances; without a stable secret every
+    # instance mints a different signature and visitors are logged out at
+    # random. Generated per-process when unset, which is fine for one
+    # container and useless on a serverless platform.
+    demo_session_secret: Optional[str] = None
+
+    # True where the filesystem does not survive between requests: Vercel,
+    # Lambda, Cloud Run with no volume. Set explicitly, or detected from the
+    # platform's own marker. Read by bot/demo.py, which refuses to run a
+    # billable model in that case — see the comment there.
+    ephemeral_filesystem: bool = False
+
     @classmethod
     def from_env(cls, env: Optional[Dict[str, str]] = None) -> "Config":
         """Build from a mapping, defaulting to os.environ.
@@ -177,6 +190,16 @@ class Config:
             demo_access_codes=_access_codes(_str("DEMO_ACCESS_CODES")),
             demo_persist=(_str("DEMO_PERSIST") or "").lower()
                          in {"1", "true", "yes"},
+            demo_session_secret=_str("DEMO_SESSION_SECRET"),
+            # VERCEL and AWS_LAMBDA_FUNCTION_NAME are set by those platforms.
+            # Detected rather than only configured, because the failure this
+            # guards is someone deploying without knowing it applies to them.
+            ephemeral_filesystem=(
+                (_str("EPHEMERAL_FILESYSTEM") or "").lower()
+                in {"1", "true", "yes"}
+                or bool(_str("VERCEL"))
+                or bool(_str("AWS_LAMBDA_FUNCTION_NAME"))
+            ),
         )
 
     # --- Validation, per capability rather than all at once ---------------

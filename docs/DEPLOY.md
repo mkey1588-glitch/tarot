@@ -49,8 +49,9 @@ box. Gate 4 is currently the one to close first — see "Before seed users".
   birth date, because a human has to look at it.
 - **Questions are not stored.** Crisis detection records which pattern fired
   and the timestamp — never the text, never the session.
-- **Sessions are in memory.** A restart logs everyone out and leaves nothing
-  at rest.
+- **Sessions are signed cookies**, not server state. Nothing about a visitor
+  is held at rest, and the session survives a redeploy or a second instance —
+  which matters because the session is what enforces the access code.
 - **Storage is ephemeral** when shared, unless you set `DEMO_PERSIST=true`.
 
 ---
@@ -62,6 +63,7 @@ box. Gate 4 is currently the one to close first — see "Before seed users".
 | `DEMO_ACCESS_CODES` | **yes, to share** | `board:CODE,seed:CODE`. Cohorts appear in the event log so board and seed sessions can be told apart — the Phase 0 number depends on that distinction. |
 | `MONTHLY_LLM_BUDGET_USD` | yes | Hard cap, checked before every call against the worst case that call could cost. |
 | `OPENAI_API_KEY` | only for `--live` | Without it the demo runs the stub and cannot spend. |
+| `DEMO_SESSION_SECRET` | **yes on serverless** | Signs the session cookie. Without a stable value each instance signs differently and visitors are logged out at random. Generated per-process when unset, which is fine for one container only. |
 | `DEMO_PERSIST` | no | `true` keeps storage across restarts. Default is ephemeral. |
 | `ADMIN_TOKEN` | no | Only used by the LINE app's `/admin/*`. |
 | `LEGAL_REVIEW_COMPLETED_ON` | no | Set to the date counsel signed off. Read by `/readiness`. Not for an engineer to set. |
@@ -120,23 +122,46 @@ Cloudflare **Containers** does run this image and is always-on, but needs a
 Workers Paid plan. If you want that rather than the tunnel, it is a
 `wrangler.jsonc` away — ask and I will write it.
 
-## Why not Vercel
+## Vercel
 
-Vercel's Python runtime is serverless: an ephemeral filesystem and many
-short-lived instances. Four things here depend on state surviving between
-requests, and all four break.
+It deploys, with two things removed rather than pretended.
 
-| | container host | Vercel |
-|---|---|---|
-| `MONTHLY_LLM_BUDGET_USD` | sums `data/llm_usage.jsonl` for the month | the log is empty on every cold start, so spend reads `$0` and **the cap stops capping** |
-| Free-tier quota | per visitor | not enforced — each instance sees an empty store |
-| Manual-review queue | a boundary chart reaches a human | the entry vanishes; we tell the user a person will look and nobody can |
-| Access codes | in-memory sessions | visitors logged out as instances cycle |
+`api/index.py` is the entrypoint — **not** `bot/app.py`, which is what
+Vercel's autodetection suggests. That module is the LINE webhook and its
+`app` is `None` on purpose so it imports without credentials; deploying it
+would deploy nothing. `pyproject.toml` points at the right one.
 
-The first row is the disqualifier. Making it work on a serverless runtime
-means putting spend and quota in an external store — a database, which is on
-the CLAUDE.md do-not-build list for Phase 0 and would be an odd thing to add
-for a demo. The same applies to any function-per-request platform.
+Set both of these in the Vercel project:
+
+```
+DEMO_ACCESS_CODES     board:<code>,seed:<code>
+DEMO_SESSION_SECRET   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Startup refuses without either.
+
+**No live model there, by construction.** `MONTHLY_LLM_BUDGET_USD` is
+enforced by summing `data/llm_usage.jsonl`, which is empty on every cold
+start on a serverless filesystem — so the cap would read `$0` spent for ever
+and stop being a cap. Rather than pretend otherwise, `create_demo_app`
+refuses to build a billable model when it detects an ephemeral filesystem
+(from Vercel's own `VERCEL` variable). Spending is impossible instead, which
+is a promise the platform can keep.
+
+**Sessions are signed cookies**, so the access gate survives instances
+cycling. That is why `DEMO_SESSION_SECRET` is mandatory: with a per-process
+generated key, each instance signs differently and visitors are logged out at
+random — and the session is what enforces the access code.
+
+What is still lost, and is visible in the UI rather than hidden: the
+free-tier quota is per instance, and the manual-review queue does not
+survive the request that wrote it. The privacy notice changes wording on
+these hosts accordingly, because the standing promise that a person will
+follow up on a boundary chart is not one this deployment can keep.
+
+Nothing that makes a reading correct is affected. The chart still comes from
+`engine/`, `screen_input` still gates the model, `screen_output` and the
+disclosure still gate the reply.
 
 ## GitHub → Render
 

@@ -400,3 +400,125 @@ def test_shared_mode_demands_codes_regardless_of_bind_address(store):
     config = Config.from_env({"FREE_TIER_LIMIT": "3"})
     with pytest.raises(NotShareable):
         create_demo_app(config, store, shared=True)
+
+
+# --- Serverless / ephemeral hosts ------------------------------------------
+
+EPHEMERAL = {"FREE_TIER_LIMIT": "3", "DEMO_ACCESS_CODES": "board:brd-1",
+             "DEMO_SESSION_SECRET": "test-secret", "VERCEL": "1"}
+
+
+def test_vercel_is_detected_from_its_own_marker():
+    """Detected rather than only configured: the failure this guards is
+    someone deploying without knowing it applies to them."""
+    assert Config.from_env({"VERCEL": "1"}).ephemeral_filesystem is True
+    assert Config.from_env({"AWS_LAMBDA_FUNCTION_NAME": "f"}).ephemeral_filesystem
+    assert Config.from_env({}).ephemeral_filesystem is False
+
+
+def test_a_billable_model_is_refused_on_an_ephemeral_filesystem(store):
+    """The budget guard sums a usage log that does not survive here, so the
+    cap would read $0 for ever. Spending is made impossible instead — a
+    promise this platform can actually keep."""
+    from bot.demo import NotShareable
+    config = Config.from_env({**EPHEMERAL, "OPENAI_API_KEY": "sk-x"})
+    with pytest.raises(NotShareable, match="MONTHLY_LLM_BUDGET_USD"):
+        create_demo_app(config, store, live=True, shared=True)
+
+
+def test_the_stub_is_allowed_on_an_ephemeral_filesystem(store):
+    assert create_demo_app(Config.from_env(EPHEMERAL), store, shared=True)
+
+
+def test_sharing_on_an_ephemeral_host_demands_a_stable_session_secret(store):
+    """Per-instance generated keys mean cookies signed by one instance fail
+    on the next — and the session is what enforces the access code."""
+    from bot.demo import NotShareable
+    config = Config.from_env({k: v for k, v in EPHEMERAL.items()
+                              if k != "DEMO_SESSION_SECRET"})
+    with pytest.raises(NotShareable, match="DEMO_SESSION_SECRET"):
+        create_demo_app(config, store, shared=True)
+
+
+def test_the_privacy_notice_stops_promising_follow_up_when_it_cannot(store):
+    """A boundary chart's queue entry does not survive here, so the standing
+    promise that a person will follow up is not one this deployment keeps."""
+    body = create_ephemeral_client(store).get("/privacy").text
+    assert "後日の連絡はできません" in body
+
+
+def create_ephemeral_client(store):
+    config = Config.from_env(EPHEMERAL)
+    gateway = ModelGateway(StubModel(), BudgetGuard(store, 10.0))
+    return TestClient(create_demo_app(
+        config, store, ReadingService(store, gateway, config), shared=True))
+
+
+# --- Stateless sessions ----------------------------------------------------
+
+def test_a_session_survives_a_process_restart(store):
+    """Two apps sharing a secret is what a second instance looks like, and
+    what a redeploy looks like. The old in-memory dict failed exactly here,
+    which on a multi-instance host means the access gate stops working
+    rather than merely annoying people."""
+    from bot.demo import SESSION_COOKIE
+
+    first, second = create_ephemeral_client(store), create_ephemeral_client(store)
+    response = first.post("/enter", headers=FORM, data={"code": "brd-1"},
+                          follow_redirects=False)
+    cookie = response.cookies[SESSION_COOKIE]
+
+    second.cookies.set(SESSION_COOKIE, cookie)
+    assert "恋愛運" in second.get("/").text
+
+
+def test_a_session_signed_with_another_secret_is_rejected(store):
+    from bot.demo import Sessions
+    issued = Sessions("secret-a").create("board")
+    assert Sessions("secret-b").get(issued) is None
+    assert Sessions("secret-a").get(issued)["cohort"] == "board"
+
+
+def test_a_tampered_session_is_rejected():
+    """Swapping the payload for a longer-lived one, keeping the signature."""
+    import base64
+
+    from bot.demo import Sessions
+
+    sessions = Sessions("secret")
+    _encoded, _, signature = sessions.create("seed").partition(".")
+    forged = base64.urlsafe_b64encode(b"board|9999999999|deadbeef")
+    assert sessions.get(f"{forged.decode().rstrip('=')}.{signature}") is None
+
+
+def test_an_expired_session_is_rejected(monkeypatch):
+    import time as real_time
+
+    from bot import demo
+
+    sessions = demo.Sessions("secret")
+    token = sessions.create("board")
+    assert sessions.get(token) is not None
+
+    # Captured before patching: demo.time IS the time module, so patching it
+    # would otherwise patch the replacement's own call to it.
+    later = real_time.time() + demo.SESSION_TTL_SECONDS + 60
+    monkeypatch.setattr(demo.time, "time", lambda: later)
+    assert sessions.get(token) is None
+
+
+def test_malformed_session_tokens_do_not_raise():
+    from bot.demo import Sessions
+    sessions = Sessions("secret")
+    for junk in ("", "no-dot", "....", "!!!.!!!", "a.b", None):
+        assert sessions.get(junk) is None
+
+
+def test_the_visitor_id_is_stable_across_instances(store):
+    """Per-visitor quota depends on the id being the same person each time."""
+    from bot.demo import Sessions
+    token = Sessions("shared-secret").create("board")
+    first = Sessions("shared-secret").get(token)
+    second = Sessions("shared-secret").get(token)
+    assert first["user_id"] == second["user_id"]
+    assert first["user_id"].startswith("demo:board:")
