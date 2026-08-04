@@ -20,12 +20,38 @@ ENTRYPOINT = ROOT / "api" / "index.py"
 PYPROJECT = ROOT / "pyproject.toml"
 
 STDLIB = Path(sysconfig.get_paths()["stdlib"]).resolve()
+
+# Where installed packages live. On a macOS virtualenv this is a separate
+# tree from the stdlib; on the CI runner site-packages sits *inside* the
+# stdlib directory. A naive "is it under the stdlib path" test therefore
+# calls fastapi part of the standard library on CI and not on a laptop,
+# which is how this file passed locally and failed on every push for three
+# commits before anyone looked at the run.
+SITE_PACKAGES = {
+    Path(path).resolve()
+    for key in ("purelib", "platlib")
+    for path in [sysconfig.get_paths().get(key)]
+    if path
+}
+
 LOCAL = {"bot", "engine", "api"}
+
+# A compiler directive, not a package. Real 3.12 lists it in
+# stdlib_module_names, but nothing should depend on that.
+IGNORED = {"__future__"}
 
 
 def _is_stdlib(name: str) -> bool:
-    if name in getattr(__import__("sys"), "builtin_module_names", ()):
+    import sys
+
+    if name in IGNORED or name in sys.builtin_module_names:
         return True
+
+    # Exact, on 3.10+. The path heuristic below is the 3.9 fallback.
+    known = getattr(sys, "stdlib_module_names", None)
+    if known is not None:
+        return name in known
+
     try:
         spec = importlib.util.find_spec(name)
     except (ImportError, ValueError):
@@ -33,9 +59,12 @@ def _is_stdlib(name: str) -> bool:
     if spec is None or spec.origin in (None, "built-in", "frozen"):
         return spec is not None
     try:
-        return STDLIB in Path(spec.origin).resolve().parents
+        origin = Path(spec.origin).resolve()
     except (OSError, ValueError):
         return False
+    if any(site in origin.parents for site in SITE_PACKAGES):
+        return False
+    return STDLIB in origin.parents
 
 
 def _module_file(dotted: str):
