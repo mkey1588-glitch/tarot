@@ -508,3 +508,24 @@ def test_attaching_buttons_keeps_the_rendered_parameters(client, transport):
     with_buttons = message.with_quick(quick_set("after_reading"))
     assert "abc123" in with_buttons.text
     assert with_buttons.quick
+
+
+# --- Stripe -----------------------------------------------------------------
+
+def test_the_stripe_webhook_is_closed_while_payments_are_disabled(client):
+    """Every gate is open, so there is nothing legitimate to receive."""
+    assert client.post("/stripe/webhook", content=b"{}").status_code == 503
+
+
+def test_the_payment_reply_is_a_push_not_a_reply():
+    """There is no reply token — she is on Stripe's page, not in the
+    conversation. This is the path Transport.push was declared abstract for
+    while it was still unused."""
+    import inspect
+
+    from bot import app as app_module
+    source = inspect.getsource(app_module.create_app)
+    webhook = source[source.index("async def stripe_webhook"):]
+    webhook = webhook[:webhook.index("# --- Ops")]
+    assert "transport.push(" in webhook
+    assert "transport.reply(" not in webhook

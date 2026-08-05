@@ -120,6 +120,47 @@ def create_app(config: Optional[Config] = None,
 
         return PlainTextResponse("OK")
 
+    @app.post("/stripe/webhook")
+    async def stripe_webhook(request: Request):
+        """Stripe telling us a payment completed.
+
+        Signature-verified. Unverified, anyone who finds this endpoint can
+        claim a payment and be handed a paid reading — the mirror of the
+        LINE webhook, and the same reasoning.
+
+        The reply is a push, not a reply: there is no reply token, because
+        the user is on Stripe's page rather than in the conversation. That
+        is the path `Transport.push` was declared abstract for while it was
+        still unused.
+        """
+        if not payments.enabled_for(config):
+            raise HTTPException(status_code=503, detail="payments disabled")
+
+        provider = payments.StripeProvider(config)
+        event = provider.verify_webhook(
+            await request.body(), request.headers.get("Stripe-Signature", ""))
+        if event is None:
+            raise HTTPException(status_code=400, detail="bad signature")
+
+        if event.get("type") != "checkout.session.completed":
+            return PlainTextResponse("ignored")
+
+        session = event["data"]["object"]
+        user_id = session.get("client_reference_id")
+        if not user_id:
+            logger.error("completed checkout with no client_reference_id")
+            return PlainTextResponse("no user")
+
+        # Idempotent: Stripe retries, and will deliver the same completion
+        # more than once given the chance.
+        if storage.grant_paid_credit(user_id, session.get("id", "")):
+            funnel.record(storage, funnel.Stage.PAID, user_id,
+                          amount_jpy=session.get("amount_total"))
+            storage.log_event("payment_completed",
+                              {"amount_jpy": session.get("amount_total")})
+            transport.push(user_id, canned(Msg.PAYMENT_RECEIVED))
+        return PlainTextResponse("OK")
+
     # --- Ops --------------------------------------------------------------
 
     @app.get("/health")

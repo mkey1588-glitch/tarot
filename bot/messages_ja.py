@@ -58,6 +58,7 @@ class Msg(Enum):
     DATA_NONE = "data_none"
     DATA_DELETE_CONFIRM = "data_delete_confirm"
     DATA_DELETED = "data_deleted"
+    PAYMENT_RECEIVED = "payment_received"
     OPERATOR_REVIEW_ALERT = "operator_review_alert"
     CRISIS = "crisis"
     PROFESSIONAL_MEDICAL = "professional_medical"
@@ -204,6 +205,17 @@ TEMPLATES: Dict[Msg, str] = {
     Msg.SERVICE_PAUSED: (
         "ただいま混み合っており、鑑定を一時的にお休みしています。\n"
         "時間をおいてからお試しください。"
+    ),
+
+    # After payment. Says what she now has and invites the question — she
+    # has not been asked for it yet, because we did not keep the one she
+    # asked before paying.
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.PAYMENT_RECEIVED: (
+        "ありがとうございます。お支払いを確認しました。\n\n"
+        "それでは、あらためてお聞かせください。\n"
+        "いま気にかかっていることを、そのままお書きいただければ、"
+        "命式全体を踏まえてお返事します。"
     ),
 
     # 個人情報保護法 gives a person the right to know what is held about

@@ -184,11 +184,19 @@ code, so it waits on a designer rather than on me.
 - [ ] Legal review of all user-facing copy (Rule 5). None has had it.
 - [ ] Confirm the two helpline numbers are current (`TODO(legal)` in
       `safety.py`).
-- [ ] Stripe checkout. The seam and the gate are in `bot/payments.py`;
-      `StripeProvider` is deliberately the last thing written, because it is
-      the only part that cannot be tested without a real customer and real
-      money. It refuses until all six gates are met.
-- [ ] 特定商取引法 notice — required the moment payment is enabled.
+- [x] Stripe checkout — `bot/payments.py` and `POST /stripe/webhook`.
+      Refuses on every path until all six gates are met, and that refusal
+      stays after they close; it is the control, not scaffolding.
+      **¥300 buys one paid-tier reading redeemed by asking a question
+      *after* paying**, not a deeper answer to the earlier one — holding
+      that question would mean storing what she wrote while waiting on a
+      payment page. A credit is a smaller thing to keep.
+- [ ] 特定商取引法 notice — `docs/TOKUSHOHO.md` is a template with the
+      statutory fields marked `TODO(legal)`. Gate 5 reads that file, so
+      filling it in is not enough: the marker has to go, and it should only
+      go when counsel has seen it. A completed template that has not been
+      reviewed is more dangerous than an empty one, because it looks
+      reviewed.
 - [x] Operator alert for the manual-review queue — `bot/alerts.py`. Set
       `OPERATOR_LINE_USER_ID` and a boundary chart pushes to your own LINE.
       Unset, it degrades to logging and reports itself as **unconfigured**

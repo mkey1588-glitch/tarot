@@ -128,11 +128,26 @@ class StubProvider(PaymentProvider):
 
 
 class StripeProvider(PaymentProvider):
-    """Not implemented. The seam is here so that the gate is too.
+    """Stripe Checkout, in JPY.
 
-    When it is written it goes behind `_require_permission`, uses Stripe
-    Japan with JPY (zero-decimal — ¥300 is `300`, not `30000`), and needs
-    the 特商法 notice published first.
+    Refuses via `_require_permission` until every launch gate is met, so
+    today this raises rather than charges. That is not a placeholder — it
+    is the control, and it stays after the gates close.
+
+    WHAT ¥300 BUYS
+    --------------
+    One paid-tier reading, redeemed by asking a question *after* paying —
+    not a deeper answer to the question asked before. That is deliberate:
+    holding the earlier question would mean storing what she wrote while
+    she waited on a payment page, and we do not keep questions. A credit
+    is a smaller thing to hold than a sentence about her marriage.
+
+    JPY IS ZERO-DECIMAL
+    -------------------
+    ¥300 is `300`, not `30000`. Stripe's amounts are in the currency's
+    smallest unit, and for most currencies that is 1/100 — so the habit of
+    multiplying by a hundred, correct for USD, overcharges a Japanese
+    customer a hundredfold. There is a test pinning this.
     """
 
     name = "stripe"
@@ -140,14 +155,57 @@ class StripeProvider(PaymentProvider):
     def __init__(self, config):
         self.config = config
 
+    def _client(self):
+        try:
+            import stripe
+        except ImportError as exc:  # pragma: no cover
+            raise PaymentsNotPermitted(
+                "the stripe package is not installed") from exc
+        stripe.api_key = self.config.stripe_secret_key
+        return stripe
+
     def create_checkout(self, user_id: str, amount_jpy: int,
                         description: str) -> Checkout:
         self._require_permission(self.config)
-        raise NotImplementedError(
-            "Stripe checkout is not written yet. It is deliberately the last "
-            "thing built, because it is the only part that cannot be tested "
-            "without a real customer and real money."
+        stripe = self._client()
+
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": "jpy",
+                    # Zero-decimal. See the class docstring.
+                    "unit_amount": amount_jpy,
+                    "product_data": {"name": description},
+                },
+                "quantity": 1,
+            }],
+            # Ties the completed payment back to a user without putting an
+            # identifier in the URL the customer sees.
+            client_reference_id=user_id,
+            success_url=self.config.payment_success_url,
+            cancel_url=self.config.payment_cancel_url,
+            locale="ja",
         )
+        return Checkout(checkout_id=session.id, url=session.url,
+                        amount_jpy=amount_jpy, provider=self.name)
+
+    def verify_webhook(self, body: bytes, signature: str):
+        """Confirm Stripe really sent this. Returns the event, or None.
+
+        Unverified, anyone who finds the endpoint can claim a payment
+        completed and be handed a paid reading.
+        """
+        stripe = self._client()
+        secret = self.config.stripe_webhook_secret
+        if not secret:
+            logger.error("STRIPE_WEBHOOK_SECRET is not set; refusing the event")
+            return None
+        try:
+            return stripe.Webhook.construct_event(body, signature, secret)
+        except Exception as exc:
+            logger.warning("rejected a Stripe webhook: %s", type(exc).__name__)
+            return None
 
 
 def provider_for(config, force_stub: bool = True) -> PaymentProvider:

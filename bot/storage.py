@@ -151,6 +151,45 @@ class Storage:
                 return limit
             return max(0, limit - user.get("free_quota_used", 0))
 
+    def grant_paid_credit(self, user_id: str, checkout_id: str) -> bool:
+        """Record a completed payment as one paid reading owed.
+
+        Idempotent on `checkout_id`, because Stripe retries webhooks and
+        will happily deliver the same completion twice. Granting two
+        readings for one payment is the cheap failure; the expensive one is
+        charging twice, which cannot happen here since we never initiate.
+        """
+        with self._lock:
+            users = self._read_users()
+            user = users.setdefault(user_id, {
+                "user_id": user_id, "created_at": _now_iso(),
+                "free_quota_used": 0, "message_count": 0,
+            })
+            seen = user.setdefault("paid_checkouts", [])
+            if checkout_id in seen:
+                return False
+            seen.append(checkout_id)
+            user["paid_credits"] = user.get("paid_credits", 0) + 1
+            user["updated_at"] = _now_iso()
+            self._write_users(users)
+            return True
+
+    def consume_paid_credit(self, user_id: str) -> bool:
+        """Spend one paid reading. True if there was one to spend."""
+        with self._lock:
+            users = self._read_users()
+            user = users.get(user_id, {})
+            if user.get("paid_credits", 0) < 1:
+                return False
+            user["paid_credits"] -= 1
+            user["updated_at"] = _now_iso()
+            self._write_users(users)
+            return True
+
+    def paid_credits(self, user_id: str) -> int:
+        with self._lock:
+            return self._read_users().get(user_id, {}).get("paid_credits", 0)
+
     # --- Append-only logs --------------------------------------------------
 
     def _append(self, path: Path, record: dict) -> None:

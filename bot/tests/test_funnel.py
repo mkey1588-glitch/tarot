@@ -159,10 +159,95 @@ def test_the_stub_moves_no_money_but_completes_the_flow(store):
     assert "example.invalid" in checkout.url
 
 
-def test_the_stripe_provider_is_deliberately_unwritten():
-    """It is last because it is the only part that cannot be tested without
-    a real customer and real money."""
+def test_the_stripe_provider_asks_permission_before_anything_else():
+    """The gate is the first statement in the method, not a check somewhere
+    in the middle that a future edit could reorder past."""
     import inspect
     source = inspect.getsource(payments.StripeProvider.create_checkout)
-    assert "_require_permission" in source
-    assert "NotImplementedError" in source
+    assert source.index("_require_permission") < source.index("Session.create")
+
+
+def test_jpy_is_charged_as_a_zero_decimal_currency():
+    """¥300 is 300, not 30000. Stripe amounts are in the currency's smallest
+    unit, and for most currencies that is 1/100 — so the habit of
+    multiplying by a hundred, correct for USD, overcharges a Japanese
+    customer a hundredfold."""
+    import inspect
+    source = inspect.getsource(payments.StripeProvider.create_checkout)
+    assert '"unit_amount": amount_jpy' in source
+    assert "* 100" not in source and "*100" not in source
+
+
+def test_the_checkout_carries_no_personal_data_to_stripe():
+    """Stripe gets an opaque user id and a product name. Not a birth date,
+    not the question — the customer's own card details are between her and
+    Stripe, and nothing about the reading needs to travel with them."""
+    import inspect
+    source = inspect.getsource(payments.StripeProvider.create_checkout)
+    for leak in ("birth", "question", "chart", "命式"):
+        assert leak not in source
+
+
+def test_a_stripe_webhook_without_a_secret_is_refused():
+    """Unverified, anyone who finds the endpoint can claim a payment
+    completed and be handed a paid reading."""
+    provider = payments.StripeProvider(Config.from_env({}))
+    assert provider.verify_webhook(b"{}", "sig") is None
+
+
+# --- What ¥300 buys --------------------------------------------------------
+
+def test_a_payment_grants_a_credit_rather_than_answering_the_old_question(store):
+    """Holding the question she asked before paying would mean storing what
+    she wrote while waiting on a payment page. A credit is a smaller thing
+    to keep than a sentence about her marriage."""
+    assert store.grant_paid_credit("U1", "cs_test_1") is True
+    assert store.paid_credits("U1") == 1
+
+
+def test_the_same_stripe_event_twice_grants_one_credit(store):
+    """Stripe retries webhooks and will deliver the same completion again."""
+    store.grant_paid_credit("U1", "cs_test_1")
+    assert store.grant_paid_credit("U1", "cs_test_1") is False
+    assert store.paid_credits("U1") == 1
+
+
+def test_a_credit_is_spent_once(store):
+    store.grant_paid_credit("U1", "cs_test_1")
+    assert store.consume_paid_credit("U1") is True
+    assert store.consume_paid_credit("U1") is False
+
+
+def test_a_paid_credit_is_used_before_the_free_tier(store):
+    """Otherwise a credit bought on a day with free readings left would be
+    silently spent on one she could have had for nothing."""
+    from datetime import date, time
+
+    from bot.cost import BudgetGuard
+    from bot.llm import ModelGateway, StubModel
+    from bot.reading import BirthData, ReadingService
+
+    config = Config.from_env({"FREE_TIER_LIMIT": "3"})
+    service = ReadingService(
+        store, ModelGateway(StubModel(), BudgetGuard(store, 10.0)), config)
+    store.grant_paid_credit("U1", "cs_test_1")
+
+    service.generate("U1", "恋愛運を教えて", BirthData(date(1990, 5, 15), time(7, 30)))
+
+    assert store.paid_credits("U1") == 0
+    assert store.free_quota_remaining("U1", 3) == 3      # untouched
+    assert list(store.iter_llm_usage())[0]["tier"] == "paid"
+
+
+# --- The 特商法 gate --------------------------------------------------------
+
+def test_the_notice_gate_reads_the_document_not_a_flag():
+    """A filled-in template that has not been through counsel is more
+    dangerous than an empty one, because it looks reviewed."""
+    from bot import readiness
+    assert readiness._tokushoho_published() is False   # TODO(legal) remains
+
+    paid = Config.from_env({"STRIPE_SECRET_KEY": "sk_test"})
+    gate = next(g for g in readiness.gates(paid) if g.key == "tokushoho")
+    assert not gate.met
+    assert "TODO(legal)" in gate.detail

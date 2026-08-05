@@ -37,6 +37,7 @@ from bot.config import REPO_ROOT
 
 DECISIONS = REPO_ROOT / "docs" / "DECISIONS.md"
 SAFETY = REPO_ROOT / "bot" / "safety.py"
+TOKUSHOHO = REPO_ROOT / "docs" / "TOKUSHOHO.md"
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,18 @@ def _helplines_confirmed() -> bool:
     if not SAFETY.exists():
         return False
     return "TODO(legal)" not in SAFETY.read_text(encoding="utf-8")
+
+
+def _tokushoho_published() -> bool:
+    """The notice exists and nobody left a TODO(legal) in it.
+
+    Same shape as the helpline check: wired to the artefact that would have
+    changed, not to a flag. A filled-in template that has not been through
+    counsel is more dangerous than an empty one, because it looks reviewed.
+    """
+    if not TOKUSHOHO.exists():
+        return False
+    return "TODO(legal)" not in TOKUSHOHO.read_text(encoding="utf-8")
 
 
 def _disclosure_is_structural() -> bool:
@@ -119,9 +132,10 @@ def gates(config=None) -> List[Gate]:
         Gate(
             "tokushoho",
             "特定商取引法に基づく表記",
-            not payment_enabled,
-            ("決済が無効のため現時点では不要"
-             if not payment_enabled else "決済が有効。表記が必須"),
+            not payment_enabled or _tokushoho_published(),
+            ("決済が無効のため現時点では不要" if not payment_enabled
+             else "公開済み" if _tokushoho_published()
+             else "決済が有効。docs/TOKUSHOHO.md に TODO(legal) が残っています"),
         ),
         Gate(
             "legal_review",

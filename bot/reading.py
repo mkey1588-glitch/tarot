@@ -228,6 +228,12 @@ class ReadingService:
             return ReadingOutcome(canned(Msg.NEED_BIRTH_DATA_FIRST),
                                   "no_birth_data")
 
+        # 3a. A paid reading, if one has been bought. Checked before the
+        #     free tier so a credit is never wasted on a day she still had
+        #     free readings left.
+        if tier == "free" and self.storage.consume_paid_credit(user_id):
+            tier = "paid"
+
         # 3. Free-tier quota. Running out is where the Phase 0 question gets
         #    asked: the user is offered the paid reading rather than simply
         #    turned away. Rule 1 constrains that offer — see messages_ja.

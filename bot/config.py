@@ -121,6 +121,9 @@ class Config:
 
     # Payments. Present only to answer "is the 特商法 notice required yet".
     stripe_secret_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+    payment_success_url: str = "https://example.invalid/thanks"
+    payment_cancel_url: str = "https://example.invalid/cancelled"
 
     # Set to the date counsel signed off the user-facing copy. Read by
     # bot/readiness.py; it is not something an engineer should be setting.
@@ -192,6 +195,11 @@ class Config:
             admin_token=_str("ADMIN_TOKEN"),
             operator_line_user_id=_str("OPERATOR_LINE_USER_ID"),
             stripe_secret_key=_str("STRIPE_SECRET_KEY"),
+            stripe_webhook_secret=_str("STRIPE_WEBHOOK_SECRET"),
+            payment_success_url=(_str("PAYMENT_SUCCESS_URL")
+                                 or "https://example.invalid/thanks"),
+            payment_cancel_url=(_str("PAYMENT_CANCEL_URL")
+                                or "https://example.invalid/cancelled"),
             legal_review_completed_on=_str("LEGAL_REVIEW_COMPLETED_ON"),
             demo_access_codes=_access_codes(_str("DEMO_ACCESS_CODES")),
             demo_persist=(_str("DEMO_PERSIST") or "").lower()
