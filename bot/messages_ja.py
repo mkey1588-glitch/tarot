@@ -262,6 +262,34 @@ TEMPLATES: Dict[Msg, str] = {
     Msg.PROFESSIONAL_FINANCIAL: PROFESSIONAL_REPLY["financial"],
 }
 
+# Quick-reply buttons. Labels are user-facing copy and are screened by the
+# same test as everything else here — a button is smaller than a paragraph
+# and correspondingly easier to forget is copy at all.
+#
+# PLACEHOLDER — practitioner to rewrite. Do not ship.
+def _q(label, kind="message", payload=""):
+    from bot.outbound import QuickAction
+    return QuickAction(label, kind, payload or label)
+
+
+def quick(name: str):
+    """Named button sets. Built lazily to avoid a circular import."""
+    sets = {
+        # Offered with the welcome and after registration: the two things
+        # she is most likely to want, plus the way out.
+        "start": [_q("生年月日を選ぶ", "date"), _q("ヘルプ")],
+        "after_reading": [_q("今日の運勢"), _q("ヘルプ")],
+        "after_register": [_q("今日の運勢"), _q("ヘルプ")],
+        # Never attached to a crisis or professional referral. Those are not
+        # moments to offer someone a menu.
+        "data": [_q("データ確認"), _q("データ削除")],
+    }
+    return sets[name]
+
+
+QUICK_LABELS = ["生年月日を選ぶ", "ヘルプ", "今日の運勢",
+                "データ確認", "データ削除"]
+
 PROFESSIONAL_MESSAGE = {
     "medical": Msg.PROFESSIONAL_MEDICAL,
     "legal": Msg.PROFESSIONAL_LEGAL,

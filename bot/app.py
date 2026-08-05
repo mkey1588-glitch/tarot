@@ -35,7 +35,7 @@ from bot.config import Config, load_env
 from bot.cost import BudgetGuard
 from bot.line_api import LineTransport, parse_events, verify_signature
 from bot.llm import ModelGateway, OpenAIModel
-from bot.messages_ja import Msg
+from bot.messages_ja import Msg, quick
 from bot.outbound import Transport, canned
 from bot.reading import BirthData, ReadingService, parse_birth_data
 from bot.storage import JST, Storage
@@ -180,11 +180,23 @@ def _handle_event(app: FastAPI, event: dict) -> None:
         storage.log_event("follow")
         funnel.record(storage, funnel.Stage.FOLLOWED, user_id)
         transport.reply(reply_token,
-                        canned(Msg.WELCOME, limit=config.free_tier_limit))
+                        canned(Msg.WELCOME, quick("start"),
+                               limit=config.free_tier_limit))
         return
 
     if event_type == "unfollow":
         storage.log_event("unfollow")
+        return
+
+    if event_type == "postback":
+        # LINE's date picker returns here rather than as a message. It is
+        # the one input path where a user cannot get the format wrong,
+        # which for a birth date is most of the difficulty.
+        params = (event.get("postback") or {}).get("params") or {}
+        picked = params.get("date")
+        if picked:
+            _register_birth(app, user_id, reply_token,
+                            parse_birth_data(picked))
         return
 
     if event_type != "message":
@@ -252,23 +264,30 @@ def _handle_text(app: FastAPI, user_id: str, reply_token: str,
     # because parse_birth_data cannot match one.
     birth = parse_birth_data(text)
     if birth is not None and _is_registration(text):
-        storage.upsert_user(user_id, birth.to_record())
-        storage.log_event("birth_data_registered",
-                          {"hour_known": birth.hour_known})
-        funnel.record(storage, funnel.Stage.REGISTERED, user_id,
-                      hour_known=birth.hour_known)
-        transport.reply(reply_token, canned(
-            Msg.BIRTH_DATA_SAVED,
-            birth_summary=birth.summary(),
-            time_note=_time_note(birth),
-        ))
+        _register_birth(app, user_id, reply_token, birth)
+        return
+
+    # She tried to give us a date and we could not read it. Before this,
+    # that fell through to "please give me your birth date" — the same
+    # request again, with no sign that the format was the problem. The
+    # message for it existed and was wired to nothing.
+    if birth is None and _looks_like_a_date_attempt(text):
+        transport.reply(reply_token, canned(Msg.BIRTH_DATA_UNPARSEABLE,
+                                            quick("start")))
         return
 
     stored = BirthData.from_record(storage.get_user(user_id))
     kind = "daily" if text in DAILY_COMMANDS else "question"
 
     outcome = service.generate(user_id, text, birth=stored, kind=kind)
-    transport.reply(reply_token, outcome.message)
+
+    message = outcome.message
+    # No buttons on a crisis reply or a professional referral. Those are not
+    # moments to offer someone a menu, and a row of cheerful suggestions
+    # under a helpline would undo the tone the message is carrying.
+    if outcome.outcome in ("delivered", "quota_exhausted", "paywall_shown"):
+        message = message.with_quick(quick("after_reading"))
+    transport.reply(reply_token, message)
 
 
 def _handle_data_request(app: FastAPI, user_id: str, reply_token: str) -> None:
@@ -317,6 +336,40 @@ def _handle_checkout(app: FastAPI, user_id: str, reply_token: str) -> None:
     transport.reply(reply_token, canned(
         Msg.CHECKOUT_HANDOFF, url=checkout.url,
         price=config.deep_reading_price_jpy))
+
+
+def _register_birth(app: FastAPI, user_id: str, reply_token: str,
+                    birth) -> None:
+    """Shared by typed dates and the date picker."""
+    storage: Storage = app.state.storage
+    transport: Transport = app.state.transport
+
+    if birth is None:
+        transport.reply(reply_token, canned(Msg.BIRTH_DATA_UNPARSEABLE,
+                                            quick("start")))
+        return
+
+    storage.upsert_user(user_id, birth.to_record())
+    storage.log_event("birth_data_registered", {"hour_known": birth.hour_known})
+    funnel.record(storage, funnel.Stage.REGISTERED, user_id,
+                  hour_known=birth.hour_known)
+    transport.reply(reply_token, canned(
+        Msg.BIRTH_DATA_SAVED, quick("after_register"),
+        birth_summary=birth.summary(), time_note=_time_note(birth),
+    ))
+
+
+_DATE_ATTEMPT = re.compile(r"\d{4}|[0-9]{1,2}\s*[/／年月日]|生年月日|誕生日")
+
+
+def _looks_like_a_date_attempt(text: str) -> bool:
+    """Did she mean to give us a date and get the shape wrong?
+
+    Deliberately loose. A false positive costs one extra "here is the
+    format" message; a false negative sends her round the same loop with no
+    hint of what went wrong, which is where people give up.
+    """
+    return bool(_DATE_ATTEMPT.search(text)) and len(text) <= 40
 
 
 def _is_registration(text: str) -> bool:

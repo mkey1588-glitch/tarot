@@ -22,11 +22,14 @@ import hashlib
 import hmac
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from bot.outbound import Outbound, Transport
 
 logger = logging.getLogger("uranai.line")
+
+JST = timezone(timedelta(hours=9))
 
 
 def verify_signature(channel_secret: str, body: bytes,
@@ -81,8 +84,31 @@ class LineTransport(Transport):
 
     @staticmethod
     def _text_messages(message: Outbound):
-        from linebot.v3.messaging import TextMessage
-        return [TextMessage(text=chunk) for chunk in message.chunks()]
+        from linebot.v3.messaging import (
+            DatetimePickerAction, MessageAction, QuickReply, QuickReplyItem,
+            TextMessage,
+        )
+
+        def to_item(action):
+            if action.kind == "date":
+                return QuickReplyItem(action=DatetimePickerAction(
+                    label=action.label, data="birth_date", mode="date",
+                    # Nobody in the target cohort was born outside this
+                    # range, and an open-ended picker makes a 1990 birthday
+                    # a long scroll.
+                    initial="1990-01-01", min="1900-01-01",
+                    max=datetime.now(JST).strftime("%Y-%m-%d"),
+                ))
+            return QuickReplyItem(action=MessageAction(
+                label=action.label, text=action.payload))
+
+        chunks = message.chunks()
+        messages = [TextMessage(text=chunk) for chunk in chunks]
+        if message.quick and messages:
+            # LINE shows quick replies on the last message of a reply only.
+            messages[-1].quick_reply = QuickReply(
+                items=[to_item(a) for a in message.quick])
+        return messages
 
     def reply(self, reply_token: str, message: Outbound) -> None:
         self._require_outbound(message)

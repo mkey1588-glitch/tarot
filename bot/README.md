@@ -157,6 +157,24 @@ user who exhausts the free tier is simply told so.
 Funnel events are the only ones carrying a user id. `log_crisis_event` takes
 a pattern and a timestamp and has no parameter that could accept one.
 
+## Interaction
+
+Quick-reply buttons ride on an `Outbound` (`with_quick`), so they go through
+the same funnel as the text. Their labels are user-facing copy registered in
+`messages_ja` and screened by the same test as everything else — a button is
+smaller than a paragraph and correspondingly easier to forget is copy.
+
+They are **not** attached to a crisis reply or a professional referral. A row
+of cheerful suggestions under a helpline would undo the tone the message is
+carrying.
+
+Birth dates can arrive three ways: typed, via LINE's date picker (a
+`postback`, the one path where the format cannot be got wrong), or wrongly —
+and the third now gets the format back rather than the same request again.
+
+Still needed: a **rich menu** (B2). That is an image asset at 2500×1686, not
+code, so it waits on a designer rather than on me.
+
 ## Still to do
 
 - [ ] `prompts_ja.py` and `messages_ja.py` — **blocked on the retained

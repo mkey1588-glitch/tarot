@@ -418,3 +418,93 @@ def test_the_help_text_mentions_both_rights(client, transport):
     signed(client, text_event("ヘルプ"))
     assert "データ確認" in transport.texts[-1]
     assert "データ削除" in transport.texts[-1]
+
+
+# --- B1/B3/B4: buttons, the date picker, and getting the format wrong ------
+
+def test_a_reading_offers_the_next_step(client, transport):
+    register(client)
+    signed(client, text_event("恋愛運を教えてください"))
+    labels = [a.label for a in transport.sent[-1]["message"].quick]
+    assert "今日の運勢" in labels
+
+
+def test_a_crisis_reply_carries_no_buttons(client, transport):
+    """A row of cheerful suggestions under a helpline would undo the tone
+    the message is carrying."""
+    register(client)
+    signed(client, text_event("もう死にたい"))
+    assert transport.sent[-1]["message"].quick == ()
+
+
+def test_a_professional_referral_carries_no_buttons(client, transport):
+    register(client)
+    signed(client, text_event("癌は治りますか"))
+    assert transport.sent[-1]["message"].quick == ()
+
+
+def test_the_welcome_offers_the_date_picker(client, transport):
+    signed(client, {"events": [{"type": "follow", "replyToken": "t",
+                                "source": {"type": "user", "userId": "U1"}}]})
+    kinds = {a.kind for a in transport.sent[-1]["message"].quick}
+    assert "date" in kinds
+
+
+def test_the_date_picker_registers_a_birth_date(client, store, transport):
+    """The one input path where the format cannot be got wrong, which for a
+    birth date is most of the difficulty."""
+    signed(client, {"events": [{
+        "type": "postback", "replyToken": "t",
+        "source": {"type": "user", "userId": "U1"},
+        "postback": {"data": "birth_date", "params": {"date": "1985-03-10"}},
+    }]})
+    assert store.get_user("U1")["birth_date"] == "1985-03-10"
+    assert "1985年3月10日" in transport.texts[-1]
+
+
+def test_a_postback_without_a_date_is_ignored(client, store):
+    signed(client, {"events": [{
+        "type": "postback", "replyToken": "t",
+        "source": {"type": "user", "userId": "U1"},
+        "postback": {"data": "something-else", "params": {}},
+    }]})
+    assert "birth_date" not in store.get_user("U1")
+
+
+@pytest.mark.parametrize("attempt", [
+    "1990年13月45日", "1990/5", "誕生日は忘れました", "19900515",
+])
+def test_a_failed_date_gets_the_format_rather_than_the_same_request(
+        client, transport, attempt):
+    """Before this it fell through to "please give me your birth date" — the
+    same request again, with no sign the format was the problem. The message
+    for it existed and was wired to nothing."""
+    signed(client, text_event(attempt))
+    assert transport.texts[-1] == TEMPLATES[Msg.BIRTH_DATA_UNPARSEABLE]
+
+
+def test_a_real_question_is_not_mistaken_for_a_failed_date(client, transport):
+    """The detector is loose on purpose, but it must not swallow questions."""
+    register(client)
+    signed(client, text_event("彼と別れるべきか迷っています"))
+    assert transport.texts[-1] != TEMPLATES[Msg.BIRTH_DATA_UNPARSEABLE]
+
+
+def test_quick_reply_labels_are_screened_copy():
+    """A button is smaller than a paragraph and correspondingly easier to
+    forget is user-facing copy at all."""
+    from bot.messages_ja import QUICK_LABELS
+    from bot.safety import Verdict, screen_output
+    for label in QUICK_LABELS:
+        assert screen_output(label).verdict is Verdict.ALLOW, label
+
+
+def test_attaching_buttons_keeps_the_rendered_parameters(client, transport):
+    """Rebuilding from the Msg would drop them — for MANUAL_REVIEW that is
+    the reference number the user was told to quote."""
+    from bot.messages_ja import quick as quick_set
+    from bot.outbound import canned as canned_msg
+    message = canned_msg(Msg.MANUAL_REVIEW, review_id="abc123")
+    with_buttons = message.with_quick(quick_set("after_reading"))
+    assert "abc123" in with_buttons.text
+    assert with_buttons.quick
