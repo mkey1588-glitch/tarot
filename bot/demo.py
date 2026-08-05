@@ -54,6 +54,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from bot import readiness
+from bot import prompts_ja
+from bot.chart_service import ManualReviewRequired, build_payload, format_for_prompt
 from bot.config import Config, load_env
 from bot.cost import BudgetGuard
 from bot.llm import ModelGateway, StubModel
@@ -465,6 +467,10 @@ def form(birth_date: str, birth_time: str, question: str, tier: str,
   <div class="meta">
     <span>model: <b>{'live' if live else 'stub'}</b></span>
     <span><a href="/reset">枠をリセット</a></span>
+  </div>
+  <div class="meta">
+    <span><a href="/review">命式の照合</a></span>
+    <span><a href="/prompt">プロンプトの検討</a></span>
   </div>
   <div class="reason">上の例はそれぞれ URL があり、そのまま共有できます。
     フォームに入力した鑑定には URL がつきません — 生年月日やご相談が
@@ -901,6 +907,42 @@ def create_demo_app(config: Optional[Config] = None,
             fields.get("question", ""), fields.get("tier", "free"),
         )
 
+    # --- The practitioner's workbench (gates 1 and 2) --------------------
+
+    @app.get("/review", response_class=HTMLResponse)
+    def review_page(request: Request):
+        if visitor(request) is None:
+            return RedirectResponse("/", status_code=303)
+        return page(header() + banner(config) + review_form("") + review_help())
+
+    @app.post("/review", response_class=HTMLResponse)
+    async def review_run(request: Request):
+        if visitor(request) is None:
+            return RedirectResponse("/", status_code=303)
+        pasted = _parse_form(await request.body()).get("charts", "")
+        return page(header() + banner(config) + review_form(pasted)
+                    + review_results(pasted) + review_help())
+
+    @app.get("/prompt", response_class=HTMLResponse)
+    def prompt_page(request: Request):
+        if visitor(request) is None:
+            return RedirectResponse("/", status_code=303)
+        return page(header() + banner(config)
+                    + prompt_workbench(prompts_ja.SYSTEM_PROMPT,
+                                       prompts_ja.READING_PROMPT,
+                                       "1990-05-15", "07:30",
+                                       "恋愛運を教えてください", live))
+
+    @app.post("/prompt", response_class=HTMLResponse)
+    async def prompt_run(request: Request):
+        if visitor(request) is None:
+            return RedirectResponse("/", status_code=303)
+        f = _parse_form(await request.body())
+        return page(header() + banner(config) + prompt_workbench(
+            f.get("system", ""), f.get("template", ""),
+            f.get("birth_date", ""), f.get("birth_time", ""),
+            f.get("question", ""), live, run=True, service=service))
+
     @app.get("/reset")
     def reset(request: Request):
         session = visitor(request)
@@ -911,6 +953,192 @@ def create_demo_app(config: Optional[Config] = None,
         return RedirectResponse("/", status_code=303)
 
     return app
+
+
+def review_form(pasted: str) -> str:
+    """Where the practitioner pastes charts they computed by hand."""
+    return f"""
+<div class="card">
+  <h2>命式の照合 — 先生が立てた命式との突き合わせ</h2>
+  <form method="post" action="/review">
+    <label for="charts">CSV を貼り付けてください</label>
+    <textarea id="charts" name="charts" style="min-height:150px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px"
+      placeholder="label,birth_date,birth_time,year,month,day,hour,note
+例1,1990-05-15,07:30,庚午,辛巳,庚辰,庚辰,
+23時台,1985-03-10,23:30,,,癸巳,壬子,子の刻で日柱を変える流派"
+      >{esc(pasted)}</textarea>
+    <button type="submit">照合する</button>
+  </form>
+</div>"""
+
+
+def review_help() -> str:
+    return """
+<div class="card">
+  <h2>相違の見かた</h2>
+  <div class="stage"><span class="what"><b>相違のほとんどは不具合ではありません。</b>
+    未決の論点で説明がつくものと、こちらの計算精度の範囲に収まるものを
+    分けて表示します。</span></div>
+  <div class="stage"><span class="what"><b>P1</b> 早子時/晩子時。日柱を23時で
+    繰り上げるか、子の刻まで持つか。既定は繰り上げですが仮置きです。</span></div>
+  <div class="stage"><span class="what"><b>P2</b> 地方時修正。合う場合、
+    どの経度なら合うかを範囲で出します。出生地と照らしてご確認ください。</span></div>
+  <div class="stage"><span class="what"><b>精度</b> 節気の境界に近く、
+    こちらの誤差（節入りで最大9.2分）の範囲。作法の違いではありません。</span></div>
+  <div class="stage"><span class="what"><b>未説明</b> 上記のどれでもないもの。
+    こちらで直すべきものは、これだけです。</span></div>
+</div>"""
+
+
+def review_results(pasted: str) -> str:
+    """Run the harness and render its findings."""
+    import csv as _csv
+    import io
+
+    from engine.review import Expectation, PILLARS, review, summarise
+
+    expectations, errors = [], []
+    reader = _csv.DictReader(
+        line for line in io.StringIO(pasted) if not line.lstrip().startswith("#"))
+    for number, row in enumerate(reader, start=2):
+        raw_date = (row.get("birth_date") or "").strip()
+        if not raw_date:
+            continue
+        raw_time = (row.get("birth_time") or "").strip()
+        try:
+            stamp = datetime.fromisoformat(f"{raw_date}T{raw_time or '00:00'}")
+        except ValueError:
+            errors.append(f"{number} 行目: 日付を読み取れません（{esc(raw_date)}）")
+            continue
+        expectations.append(Expectation(
+            label=(row.get("label") or raw_date).strip(),
+            birth_local=stamp, hour_known=bool(raw_time),
+            expected={n: (row.get(n) or "").strip() for n in PILLARS
+                      if (row.get(n) or "").strip()},
+            note=(row.get("note") or "").strip(),
+        ))
+
+    if not expectations:
+        problem = "<br>".join(errors) if errors else "命式が読み取れませんでした。"
+        return f'<div class="card"><h2>結果</h2><div class="reason">{problem}</div></div>'
+
+    findings = review(expectations)
+    counts = summarise(findings)
+
+    label = {"agrees": ("ok", "一致"), "P1": ("warn", "P1"),
+             "P2": ("warn", "P2"), "precision": ("warn", "精度"),
+             "unexplained": ("stop", "未説明")}
+
+    rows = []
+    for finding in findings:
+        kind, text = label[finding.diagnosis]
+        detail = ""
+        if not finding.agrees:
+            diffs = "　".join(
+                f"{n}: 先生 {finding.expectation.expected[n]} / "
+                f"engine {finding.computed.get(n)}"
+                for n in finding.mismatched)
+            detail = f"{diffs}<br>{esc(finding.detail)}"
+        rows.append(stage("", esc(finding.expectation.label),
+                          pill(kind, text), "", technical=""))
+        if detail:
+            rows.append(f'<div class="reason" style="margin:-6px 0 8px 28px">'
+                        f'{detail}</div>')
+
+    unexplained = counts.get("unexplained", 0)
+    verdict = ("未説明はありません。相違はすべて未決の論点か精度で説明がつきます。"
+               if not unexplained else
+               f"未説明が {unexplained} 件あります。"
+               "エンジンの不具合か、まだ実装していない作法です。")
+
+    summary = "　".join(f"{label[k][1]} {v}" for k, v in counts.items())
+    error_html = ("".join(f'<div class="reason">{e}</div>' for e in errors)
+                  if errors else "")
+    return f"""
+<div class="card">
+  <h2>結果 — {len(findings)} 件</h2>
+  {''.join(rows)}
+  {error_html}
+  <div class="meta"><span>{esc(summary)}</span></div>
+  <div class="reason" style="margin-top:8px">{verdict}
+    P1・P2 に分類されたものは docs/DECISIONS.md の裁定の材料になります。</div>
+</div>"""
+
+
+def prompt_workbench(system: str, template: str, birth_date: str,
+                     birth_time: str, question: str, live: bool,
+                     run: bool = False, service=None) -> str:
+    """Gate 2: the practitioner writing prompts without an engineer.
+
+    The assembled prompt is shown whether or not a model is connected,
+    because that is the half they are actually authoring — the exact text
+    the model receives, with a real chart in it. Generating a reading from
+    it needs a live model, and the page says so rather than showing stub
+    output that would not change however the prompt is edited.
+    """
+    result = ""
+    if run:
+        birth = _birth_from_form(birth_date, birth_time)
+        if birth is None:
+            result = ('<div class="card"><h2>結果</h2><div class="reason">'
+                      '生年月日を読み取れませんでした。</div></div>')
+        else:
+            try:
+                payload = build_payload(birth.as_datetime(),
+                                        hour_known=birth.hour_known)
+            except ManualReviewRequired as needs_human:
+                result = ('<div class="card"><h2>結果</h2><div class="reason">'
+                          'この命式は節気の境界にあたるため自動では出しません。<br>'
+                          f'{esc(needs_human.warnings[0])}</div></div>')
+            else:
+                chart_text = format_for_prompt(payload)
+                try:
+                    assembled = template.format(
+                        chart=chart_text,
+                        hour_note=prompts_ja.hour_note(birth.hour_known),
+                        question=question,
+                    )
+                except KeyError as missing:
+                    assembled = (f"[テンプレートの差し込み名が不明です: "
+                                 f"{missing}]")
+
+                note = ("" if live else
+                        '<div class="reason">現在はスタブ応答のため、'
+                        'プロンプトを変えても鑑定文は変わりません。'
+                        '文面の検討には下の「組み立てられたプロンプト」を'
+                        'お使いください。</div>')
+                result = f"""
+<div class="card">
+  <h2>組み立てられたプロンプト — モデルが受け取る内容そのもの</h2>
+  {note}
+  <details open><summary>system</summary><pre>{esc(system)}</pre></details>
+  <details open><summary>user</summary><pre>{esc(assembled)}</pre></details>
+</div>"""
+
+    return f"""
+<div class="card">
+  <h2>プロンプトの検討 — 実務家用</h2>
+  <div class="reason">ここで書いた内容は保存されません。
+    固まったものをお送りいただければ、こちらで反映します。</div>
+  <form method="post" action="/prompt">
+    <label for="system">system プロンプト</label>
+    <textarea id="system" name="system" style="min-height:170px;font-size:13px"
+      >{esc(system)}</textarea>
+    <label for="template">鑑定文のテンプレート
+      <span class="unknown">（{{chart}} {{hour_note}} {{question}} が差し込まれます）</span></label>
+    <textarea id="template" name="template" style="min-height:130px;font-size:13px"
+      >{esc(template)}</textarea>
+    <label for="pd">試す生年月日</label>
+    <input type="text" id="pd" name="birth_date" value="{esc(birth_date)}">
+    <label for="pt">出生時刻（不明なら空欄）</label>
+    <input type="text" id="pt" name="birth_time" value="{esc(birth_time)}">
+    <label for="pq">ご相談</label>
+    <input type="text" id="pq" name="question" value="{esc(question)}">
+    <button type="submit">組み立てる</button>
+  </form>
+</div>
+{result}"""
 
 
 def intro() -> str:

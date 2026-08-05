@@ -609,3 +609,92 @@ def test_the_gate_page_explains_itself_before_asking_for_a_code(store):
     assert "入力は保存しません" in body
     assert "試作" in body
     assert "命式" in body
+
+
+# --- Track C: the practitioner's workbench --------------------------------
+
+REVIEW_CSV = (
+    "label,birth_date,birth_time,year,month,day,hour,note\n"
+    "一致,1990-05-15,07:30,庚午,辛巳,庚辰,庚辰,\n"
+    "23時台,1985-03-10,23:30,,,戊申,壬子,子の刻で日柱を変える\n"
+    "不明な相違,1975-06-06,10:00,甲子,,乙丑,,\n"
+)
+
+
+def post(client, path, **fields):
+    return client.post(path, headers=FORM, data=fields)
+
+
+def test_the_review_page_loads(client):
+    assert "命式の照合" in client.get("/review").text
+
+
+def test_the_review_page_diagnoses_rather_than_just_diffing(client):
+    """A bare list of mismatches hands the practitioner an engineering
+    problem and hands us a divination problem."""
+    body = post(client, "/review", charts=REVIEW_CSV).text
+    assert "一致" in body
+    assert "P1" in body           # the 23:00 birth, reconciled by the ruling
+    assert "未説明" in body        # the genuinely wrong one
+
+
+def test_the_review_page_reports_unreadable_rows_without_dying(client):
+    body = post(client, "/review", charts=(
+        "label,birth_date,birth_time,year,month,day,hour,note\n"
+        "壊れた行,not-a-date,,甲子,,,,\n"
+        "良い行,1990-05-15,07:30,庚午,,,,\n")).text
+    assert "読み取れません" in body
+    assert "一致" in body          # the good row still ran
+
+
+def test_an_empty_paste_says_so_rather_than_500ing(client):
+    assert post(client, "/review", charts="").status_code == 200
+
+
+def test_the_workbench_shows_the_prompt_the_model_would_receive(client):
+    """Gate 2 is the practitioner writing prompts. What they are authoring
+    is this text, with a real chart in it."""
+    body = post(client, "/prompt",
+                system="あなたは四柱推命の占い師です。",
+                template="{chart}\n{hour_note}\n【ご相談】{question}",
+                birth_date="1990-05-15", birth_time="07:30",
+                question="恋愛運を教えてください").text
+    assert "庚午" in body                      # the computed chart
+    assert "恋愛運を教えてください" in body
+    assert "あなたは四柱推命の占い師です。" in body
+
+
+def test_the_workbench_is_honest_that_the_stub_ignores_the_prompt(client):
+    """Showing stub output that does not change however the prompt is edited
+    would teach the practitioner something false about their own work."""
+    body = post(client, "/prompt", system="s", template="{chart}",
+                birth_date="1990-05-15", birth_time="07:30", question="q").text
+    assert "プロンプトを変えても鑑定文は変わりません" in body
+
+
+def test_the_workbench_names_an_unknown_placeholder(client):
+    """A renamed field should say which one, not raise."""
+    body = post(client, "/prompt", system="s", template="{chart} {nonexistent}",
+                birth_date="1990-05-15", birth_time="07:30", question="q").text
+    assert "差し込み名が不明" in body
+    assert "nonexistent" in body
+
+
+def test_the_workbench_refuses_a_boundary_chart_like_the_pipeline_does(client):
+    body = post(client, "/prompt", system="s", template="{chart}",
+                birth_date="2020-08-07", birth_time="", question="q").text
+    assert "節気の境界" in body
+
+
+def test_the_workbench_reports_an_unreadable_birth_date(client):
+    body = post(client, "/prompt", system="s", template="{chart}",
+                birth_date="nonsense", birth_time="", question="q").text
+    assert "読み取れませんでした" in body
+
+
+def test_both_tools_are_gated(store):
+    client = shared_client(store)
+    for path in ("/review", "/prompt"):
+        assert client.get(path, follow_redirects=False).status_code == 303
+        assert client.post(path, headers=FORM, data={},
+                           follow_redirects=False).status_code == 303

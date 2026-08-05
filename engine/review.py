@@ -137,11 +137,11 @@ def _diagnose(expectation: Expectation, base_options: ChartOptions):
     chart = compute_chart(expectation.birth_local, flipped,
                           hour_known=expectation.hour_known)
     if not _compare(expectation.expected, _pillars(chart)):
-        held = "holds until midnight" if base_options.day_changes_at_2300 \
-               else "rolls forward at 23:00"
+        held = ("日柱を子の刻まで持つ" if base_options.day_changes_at_2300
+                else "日柱を23時で繰り上げる")
         return "P1", (
-            f"reconciled if the day pillar {held} (早子時/晩子時). "
-            "This chart is evidence for the P1 ruling, not a defect."
+            f"{held}作法であれば一致します（早子時/晩子時）。"
+            "不具合ではなく、P1 の裁定の材料にあたる命式です。"
         )
 
     # precision — near enough to a term that either side could be right.
@@ -149,16 +149,14 @@ def _diagnose(expectation: Expectation, base_options: ChartOptions):
                           hour_known=expectation.hour_known)
     if chart.boundary_warnings:
         return "precision", (
-            "the birth sits near a solar-term boundary, where our computed "
-            "time and the practitioner's source can differ within the ±15 "
-            "minutes engine/solar.py documents. "
+            "節気の境界に近く、こちらの計算した節入り時刻と先生の典拠が"
+            "食い違いうる範囲です（節入りで最大9.2分、公称±15分）。"
             + chart.boundary_warnings[0]
         )
     nearest = _minutes_to_nearest_term(expectation.birth_local, base_options)
     if nearest is not None and nearest <= PRECISION_WINDOW_MINUTES:
         return "precision", (
-            f"the birth is about {nearest:.0f} min from a solar term, within "
-            "our documented precision."
+            f"節気まで約 {nearest:.0f} 分で、こちらの公称精度の範囲内です。"
         )
 
     # P2 — local mean time, and which birth longitudes it would imply.
@@ -191,18 +189,18 @@ def _diagnose(expectation: Expectation, base_options: ChartOptions):
                 if low <= degrees <= high
             )
             return "P2", (
-                f"reconciled by 地方時修正 for a birth longitude between "
-                f"{low:.1f}°E and {high:.1f}°E "
-                f"({(low - 135.0) * 4:+.0f} to {(high - 135.0) * 4:+.0f} min)"
-                + (f" — e.g. {places}" if places else "")
-                + ". If the birthplace falls in that range, this chart is "
-                "evidence for the P2 ruling rather than a defect."
+                f"地方時修正を行い、出生地の経度が東経 {low:.1f}〜{high:.1f} 度"
+                f"（{(low - 135.0) * 4:+.0f}〜{(high - 135.0) * 4:+.0f} 分）"
+                "であれば一致します"
+                + (f"。この範囲の例：{places}" if places else "")
+                + "。出生地がこの範囲であれば、不具合ではなく P2 の裁定の"
+                "材料にあたる命式です。"
             )
 
     return "unexplained", (
-        "not reconciled by any open ruling or by our documented precision. "
-        "This is either a bug in engine/ or a convention we have not "
-        "modelled — an engineer should look at it."
+        "未決の論点でも、こちらの計算精度でも説明がつきませんでした。"
+        "エンジンの不具合か、まだ実装していない作法です。"
+        "こちらで調べます（engineer が確認します）。"
     )
 
 

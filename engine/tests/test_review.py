@@ -80,8 +80,8 @@ def test_the_P1_diagnosis_names_the_convention_that_would_reconcile():
     birth = datetime(1985, 3, 10, 23, 30)
     theirs = expectation_from(birth, ChartOptions(day_changes_at_2300=False))
     detail = review([theirs])[0].detail
-    assert "holds until midnight" in detail
-    assert "evidence for the P1 ruling" in detail
+    assert "子の刻まで持つ" in detail
+    assert "P1 の裁定の材料" in detail
 
 
 def test_P1_is_not_invoked_for_a_birth_outside_that_hour():
@@ -113,7 +113,7 @@ def test_the_P2_diagnosis_reports_a_longitude_range_not_a_point():
         birth, ChartOptions(apply_local_mean_time=True,
                             birth_longitude_deg=130.4))
     detail = review([theirs])[0].detail
-    assert "between" in detail and "°E" in detail
+    assert "東経" in detail
     assert "福岡" in detail, "the true birthplace must appear in the range"
 
 
@@ -150,7 +150,7 @@ def test_a_genuine_disagreement_is_left_unexplained():
                         {"year": "甲子", "day": "乙丑"})
     finding = review([wrong])[0]
     assert finding.diagnosis == "unexplained"
-    assert "engineer" in finding.detail
+    assert "engineer" in finding.detail   # named for the practitioner's benefit
 
 
 def test_the_summary_counts_each_category():
