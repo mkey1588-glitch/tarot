@@ -197,14 +197,30 @@ h1{font-size:20px;margin:0 0 2px;letter-spacing:.02em}
 .banner b{letter-spacing:.04em}
 .cols{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);
   gap:20px;align-items:start}
-@media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:900px){
+  .cols{grid-template-columns:minmax(0,1fr)}
+  /* The reply is what a phone visitor came to see; the form is how they
+     got there. Order it accordingly rather than making them scroll. */
+  .cols > div{order:1} .cols > .card:first-child{order:2}
+}
+@media (max-width:420px){
+  .wrap{padding:16px 14px 48px}
+  .card{padding:14px}
+  .gan{font-size:22px}
+  table.chart td,table.chart th{padding:6px 2px}
+  .yomi{font-size:9px}
+  .meta{gap:10px}
+}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
   padding:18px;margin-bottom:16px}
 .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;
   color:var(--muted);margin:0 0 14px;font-weight:600}
 label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
-input[type=text],textarea,select{width:100%;padding:9px 11px;font:inherit;
-  font-size:14px;background:var(--bg);color:var(--ink);
+input[type=text],textarea,select{width:100%;padding:10px 11px;font:inherit;
+  /* 16px is not a style choice: iOS Safari zooms the whole page when a
+     field below 16px is focused, so a smaller value makes the birth-date
+     box jolt the layout on every iPhone. */
+  font-size:16px;background:var(--bg);color:var(--ink);
   border:1px solid var(--line);border-radius:6px}
 textarea{min-height:76px;resize:vertical}
 button{margin-top:16px;width:100%;padding:11px;font:inherit;font-weight:600;
@@ -234,6 +250,8 @@ button:hover{filter:brightness(1.08)}
 .pill.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
 .pill.skip{background:var(--code);color:var(--muted)}
 .reason{color:var(--muted);font-size:12px;margin-top:2px}
+.tech{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px;color:var(--muted);margin-top:1px}
 table.chart{width:100%;border-collapse:collapse;margin-top:4px;font-size:14px}
 table.chart th{font-size:11px;color:var(--muted);font-weight:600;padding:6px 4px;
   text-align:center;letter-spacing:.06em}
@@ -288,6 +306,8 @@ def banner(config: Optional[Config] = None) -> str:
     bits.append(f"未達のゲート {len(blocking)}/6 — "
                 f'<a href="/readiness" style="color:inherit">詳細</a>')
     bits.append('<a href="/privacy" style="color:inherit">個人情報の扱い</a>')
+    bits.append('<a href="https://github.com/mkey1588-glitch/tarot/blob/main/docs/DEMO_GUIDE.md" target="_blank" rel="noopener" '
+                'style="color:inherit">案内</a>')
     return ('<div class="banner"><b>DEMO</b> — ' + " · ".join(bits) +
             "</div>")
 
@@ -302,10 +322,18 @@ def gate_page(rejected: bool) -> str:
              'コードが違うようです。</div>' if rejected else "")
     return f"""
 {header()}
-<div class="card" style="max-width:460px">
+<div class="card" style="max-width:560px">
   <h2>アクセスコード</h2>
-  <p style="font-size:14px;margin:0 0 4px">
+  <p style="font-size:14px;margin:0 0 10px">
     このデモは招待制です。お渡ししたコードを入力してください。</p>
+  <div class="stage"><span class="what">中では、生年月日から
+    <b>命式（四柱推命のチャート）</b>を計算し、AI がそれを解釈した鑑定文を
+    お見せします。あわせて、その裏で何が起きたかも並べて表示します。</span></div>
+  <div class="stage"><span class="what"><b>入力は保存しません。</b>
+    生年月日は命式の計算に使ってその場で破棄し、ご相談の文面も残しません。
+    詳しくは下の「個人情報の扱い」をご覧ください。</span></div>
+  <div class="stage"><span class="what"><b>これは試作です。</b>
+    鑑定文はまだ実務家が書いたものではなく、法務レビューも未了です。</span></div>
   <form method="post" action="/enter">
     <label for="code">コード</label>
     <input type="text" id="code" name="code" autocomplete="off" autofocus>
@@ -313,7 +341,8 @@ def gate_page(rejected: bool) -> str:
     <button type="submit">入る</button>
   </form>
   <div class="meta"><span><a href="/privacy">個人情報の扱い</a></span>
-    <span><a href="/readiness">公開準備状況</a></span></div>
+    <span><a href="/readiness">公開準備状況</a></span>
+    <span><a href="https://github.com/mkey1588-glitch/tarot/blob/main/docs/DEMO_GUIDE.md" target="_blank" rel="noopener">案内（英語）</a></span></div>
 </div>
 <div class="foot">AI が生成する占いの試作です。娯楽・自己理解のためのもので、
 医療・法律・投資の判断には使えません。</div>"""
@@ -402,12 +431,15 @@ def readiness_card(config: Optional[Config]) -> str:
 
 
 def form(birth_date: str, birth_time: str, question: str, tier: str,
-         live: bool) -> str:
+         live: bool, example_index: Optional[int] = None) -> str:
     # Indexed rather than carrying the text: one preset is 死にたい, and a
     # link that puts that in the URL puts it in the access log and the
     # browser history too. Same reason the form is a POST.
+    # These run the scenario and are shareable: /example/3 is a link a board
+    # member can paste to a colleague. Custom readings deliberately have no
+    # URL — see the docstring on the /example route.
     presets = "".join(
-        f'<a href="/?preset={index}">{esc(label)}</a>'
+        f'<a href="/example/{index}">{esc(label)}</a>'
         for index, (label, _d, _t, _q) in enumerate(PRESETS)
     )
     return f"""
@@ -434,6 +466,9 @@ def form(birth_date: str, birth_time: str, question: str, tier: str,
     <span>model: <b>{'live' if live else 'stub'}</b></span>
     <span><a href="/reset">枠をリセット</a></span>
   </div>
+  <div class="reason">上の例はそれぞれ URL があり、そのまま共有できます。
+    フォームに入力した鑑定には URL がつきません — 生年月日やご相談が
+    アドレスに残らないようにするためです。</div>
 </div>"""
 
 
@@ -441,10 +476,22 @@ def pill(kind: str, label: str) -> str:
     return f'<span class="pill {kind}">{esc(label)}</span>'
 
 
-def stage(number: str, what: str, marker: str, reason: str = "") -> str:
+def stage(number: str, what: str, marker: str, reason: str = "",
+          technical: str = "") -> str:
+    """One pipeline row.
+
+    `what` is plain Japanese and `technical` is the function that does it.
+    Both are shown, the plain one first: a board member reading
+    "screen_input()" learns nothing, and an engineer reading only
+    「危機的な表現の判定」 cannot find the code. Naming both costs one line
+    and serves both readers, which a toggle would not.
+    """
     reason_html = f'<div class="reason">{esc(reason)}</div>' if reason else ""
+    tech_html = (f'<code class="tech">{esc(technical)}</code>'
+                 if technical else "")
     return (f'<div class="stage"><span class="n">{number}</span>'
-            f'<span class="what">{what}{reason_html}</span>{marker}</div>')
+            f'<span class="what">{what}{tech_html}{reason_html}</span>'
+            f'{marker}</div>')
 
 
 def pillar_cell(pillar: Optional[dict]) -> str:
@@ -491,59 +538,87 @@ def chart_card(chart: dict) -> str:
 
 def pipeline_card(trace: ReadingTrace, outcome_name: str,
                   cost_usd: float, review_id: Optional[str]) -> str:
-    rows = []
+    """The operator's view of what happened, stage by stage.
 
+    Each row names the step in plain Japanese and the function that performs
+    it. A board member reading "screen_input()" learns nothing; an engineer
+    reading only 「危機的な表現の判定」 cannot find the code. Both readers
+    get what they need, which is cheaper than a toggle and cannot get out of
+    sync with itself.
+    """
+    rows = []
     verdict = trace.input_verdict
+
     rows.append(stage(
-        "1", "screen_input() — 危機・専門領域",
-        pill("ok", "ALLOW") if verdict == "allow" else pill("stop", (verdict or "").upper()),
+        "1", "危機的な表現・専門領域の判定",
+        pill("ok", "通過") if verdict == "allow"
+        else pill("stop", "振り分け"),
         trace.input_reason or "",
+        technical="safety.screen_input()",
     ))
 
-    if trace.quota_remaining is None:
-        rows.append(stage("2", "無料枠", pill("skip", "not reached")))
-    else:
-        rows.append(stage("2", "無料枠",
-                          pill("ok", f"残り {trace.quota_remaining}")))
+    rows.append(stage(
+        "2", "無料枠の確認",
+        pill("skip", "未到達") if trace.quota_remaining is None
+        else pill("ok", f"残り {trace.quota_remaining}"),
+        technical="storage.consume_free_quota()",
+    ))
 
     if trace.chart is None:
-        marker = (pill("warn", "MANUAL REVIEW") if outcome_name == "manual_review"
-                  else pill("skip", "not reached"))
-        rows.append(stage("3", "build_payload() — 命式", marker,
-                          f"受付番号 {review_id}" if review_id else ""))
+        rows.append(stage(
+            "3", "命式の計算（AI ではなくエンジンが）",
+            pill("warn", "有人対応へ") if outcome_name == "manual_review"
+            else pill("skip", "未到達"),
+            f"受付番号 {review_id}" if review_id else "",
+            technical="engine.compute_chart()",
+        ))
     else:
-        rows.append(stage("3", "build_payload() — 命式", pill("ok", "OK")))
+        rows.append(stage("3", "命式の計算（AI ではなくエンジンが）",
+                          pill("ok", "完了"),
+                          technical="engine.compute_chart()"))
 
-    if trace.prompt_user is None:
-        rows.append(stage("4", "プロンプト組み立て", pill("skip", "not reached")))
-    else:
-        rows.append(stage("4", "プロンプト組み立て",
-                          pill("ok", "ScreenedPrompt")))
+    rows.append(stage(
+        "4", "プロンプトの組み立て",
+        pill("skip", "未到達") if trace.prompt_user is None
+        else pill("ok", "検査済みの入力のみ"),
+        technical="prompts_ja.build_reading_prompt()",
+    ))
 
     if trace.model_text is None:
-        marker = (pill("stop", "BUDGET") if outcome_name == "budget_exceeded"
-                  else pill("skip", "not called"))
-        rows.append(stage("5", "モデル呼び出し", marker))
+        rows.append(stage(
+            "5", "AI による解釈",
+            pill("stop", "予算超過") if outcome_name == "budget_exceeded"
+            else pill("skip", "呼び出さず"),
+            technical="llm.ModelGateway.complete()",
+        ))
     else:
         rows.append(stage(
-            "5", "モデル呼び出し", pill("ok", esc(trace.model or "")),
+            "5", "AI による解釈", pill("ok", esc(trace.model or "")),
             f"{trace.prompt_tokens}/{trace.completion_tokens} tokens · "
             f"${cost_usd:.6f}",
+            technical="llm.ModelGateway.complete()",
         ))
 
     if trace.output_verdict is None:
-        rows.append(stage("6", "screen_output()", pill("skip", "not reached")))
+        rows.append(stage("6", "出力の検査（景品表示法・霊感商法）",
+                          pill("skip", "未到達"),
+                          technical="safety.screen_output()"))
     elif trace.output_verdict == "allow":
-        rows.append(stage("6", "screen_output()", pill("ok", "ALLOW")))
+        rows.append(stage("6", "出力の検査（景品表示法・霊感商法）",
+                          pill("ok", "通過"),
+                          technical="safety.screen_output()"))
     else:
-        rows.append(stage("6", "screen_output()", pill("stop", "BLOCK"),
-                          trace.output_reason or ""))
+        rows.append(stage("6", "出力の検査（景品表示法・霊感商法）",
+                          pill("stop", "遮断"), trace.output_reason or "",
+                          technical="safety.screen_output()"))
 
     rows.append(stage(
-        "7", "with_disclosure() — Rule 2",
-        pill("ok", "付与") if trace.disclosure_appended else pill("skip", "対象外"),
+        "7", "AI が生成した旨の表示",
+        pill("ok", "付与") if trace.disclosure_appended
+        else pill("skip", "対象外"),
         "" if trace.disclosure_appended
-        else "定型文には付けません（危機対応は決定事項）",
+        else "定型文には付けません。相談窓口の案内に付けないのは決定事項です。",
+        technical="safety.with_disclosure()",
     ))
 
     prompts = ""
@@ -732,7 +807,7 @@ def create_demo_app(config: Optional[Config] = None,
         response = RedirectResponse("/", status_code=303)
         response.set_cookie(
             SESSION_COOKIE, token, httponly=True, samesite="lax",
-            secure=request.url.scheme == "https", max_age=60 * 60 * 12,
+            secure=request.url.scheme == "https", max_age=SESSION_TTL_SECONDS,
         )
         return response
 
@@ -760,26 +835,11 @@ def create_demo_app(config: Optional[Config] = None,
     def readiness_page():
         return page(header() + readiness_card(config))
 
-    @app.post("/reading", response_class=HTMLResponse)
-    async def reading(request: Request):
-        session = visitor(request)
-        if session is None:
-            return RedirectResponse("/", status_code=303)
-        # Parsed here rather than with FastAPI's Form(), which needs
-        # python-multipart — not a dependency worth adding for a dev tool.
-        # A GET form would avoid both, but it would put the user's question
-        # in the URL and therefore in the server log and browser history,
-        # and that question can be 死にたい.
-        fields = _parse_form(await request.body())
-        birth_date = fields.get("birth_date", "")
-        birth_time = fields.get("birth_time", "")
-        question = fields.get("question", "")
-        tier = fields.get("tier", "free")
-
+    def render_reading(session: dict, birth_date: str, birth_time: str,
+                       question: str, tier: str) -> HTMLResponse:
         birth = _birth_from_form(birth_date, birth_time)
         trace = ReadingTrace()
 
-        # The real pipeline. Nothing about this call is demo-specific.
         # The cohort travels with the reading, so board clicks and seed
         # traffic land in different columns of the funnel.
         service.cohort = session.get("cohort", "demo")
@@ -803,6 +863,43 @@ def create_demo_app(config: Optional[Config] = None,
         body.append('</div></div>')
         body.append(footer(config, storage))
         return page("".join(body))
+
+    @app.get("/example/{index}", response_class=HTMLResponse)
+    def example(request: Request, index: int):
+        """A preset, run from a shareable URL.
+
+        Only presets get a link. A URL for a custom reading would carry a
+        birth date and a question in its query string — into the access log,
+        into browser history, into whatever chat app it was pasted into —
+        which is exactly what the form being a POST avoids. Presets are our
+        own fixtures and describe nobody, so "look at scenario 4" can be a
+        link and "look at my mother's chart" cannot.
+        """
+        session = visitor(request)
+        if session is None:
+            return RedirectResponse("/", status_code=303)
+        if not 0 <= index < len(PRESETS):
+            return RedirectResponse("/", status_code=303)
+        _label, birth_date, birth_time, question = PRESETS[index]
+        return render_reading(session, birth_date, birth_time, question, "free")
+
+    @app.post("/reading", response_class=HTMLResponse)
+    async def reading(request: Request):
+        session = visitor(request)
+        if session is None:
+            return RedirectResponse("/", status_code=303)
+
+        # Parsed here rather than with FastAPI's Form(), which needs
+        # python-multipart — not a dependency worth adding for a dev tool.
+        # A GET form would avoid both, but it would put the user's question
+        # in the URL and therefore in the server log and browser history,
+        # and that question can be 死にたい.
+        fields = _parse_form(await request.body())
+        return render_reading(
+            session,
+            fields.get("birth_date", ""), fields.get("birth_time", ""),
+            fields.get("question", ""), fields.get("tier", "free"),
+        )
 
     @app.get("/reset")
     def reset(request: Request):

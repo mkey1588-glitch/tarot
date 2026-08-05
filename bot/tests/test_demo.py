@@ -119,8 +119,14 @@ def test_crisis_language_is_redirected_and_the_model_is_not_called(store,
 
     client = make_client(store, config, ExplodingModel())
     body = read(client, question="もう死にたいです").text
+    # What the user gets: the helplines, 24-hour free line first.
+    assert "0120-279-338" in body
     assert "0570-064-556" in body
-    assert "redirect_crisis" in body or "REDIRECT_CRISIS" in body
+    # What the operator sees: which pattern fired, and that the AI stage was
+    # never reached. Asserted on the visible page rather than on an enum
+    # name, since the page is what a board member actually reads.
+    assert "crisis pattern" in body
+    assert "呼び出さず" in body
 
 
 def test_the_crisis_reply_shown_carries_no_disclosure(client):
@@ -541,3 +547,65 @@ def test_health_reports_unknown_rather_than_lying(store, monkeypatch):
                 "GIT_COMMIT_SHA", "VERCEL_GIT_COMMIT_REF"):
         monkeypatch.delenv(key, raising=False)
     assert shared_client(store).get("/health").json()["version"]["commit"] == "unknown"
+
+
+# --- Track A: shareable examples, mobile, plain language -------------------
+
+def test_a_preset_has_a_shareable_url(client):
+    """"Look at scenario 4" should be a link, not instructions."""
+    response = client.get("/example/3")
+    assert response.status_code == 200
+    assert "0120-279-338" in response.text      # the crisis preset ran
+
+
+def test_every_preset_is_reachable_by_url(client):
+    for index in range(len(PRESETS)):
+        assert client.get(f"/example/{index}").status_code == 200
+
+
+def test_an_out_of_range_example_redirects_rather_than_500ing(client):
+    assert client.get("/example/99", follow_redirects=False).status_code == 303
+    assert client.get("/example/-1", follow_redirects=False).status_code in (303, 404)
+
+
+def test_examples_are_gated_like_everything_else(store):
+    client = shared_client(store)
+    assert client.get("/example/0", follow_redirects=False).status_code == 303
+
+
+def test_a_custom_reading_has_no_shareable_url(client):
+    """The counterpart to the presets having one. A URL for a custom reading
+    would carry a birth date and a question into the access log, browser
+    history and whatever chat app it was pasted into."""
+    response = read(client, birth_date="1990-05-15", question="恋愛運")
+    assert response.status_code == 200
+    # The result came from a POST; there is no GET that reproduces it.
+    assert client.get("/reading", follow_redirects=False).status_code == 405
+
+
+def test_inputs_are_at_least_16px(client):
+    """Below 16px, iOS Safari zooms the whole page when a field is focused,
+    which on a phone reads as the page breaking."""
+    import re
+    css = client.get("/").text
+    rule = re.search(r"input\[type=text\],textarea,select\{[^}]*\}", css)
+    assert rule, "input rule not found"
+    size = re.search(r"font-size:(\d+)px", rule.group(0))
+    assert size and int(size.group(1)) >= 16
+
+
+def test_the_pipeline_names_each_step_in_plain_japanese_and_in_code(client):
+    """A board member reading screen_input() learns nothing; an engineer
+    reading only 「危機的な表現の判定」 cannot find the code."""
+    body = read(client).text
+    assert "危機的な表現・専門領域の判定" in body
+    assert "safety.screen_input()" in body
+    assert "命式の計算（AI ではなくエンジンが）" in body
+    assert "engine.compute_chart()" in body
+
+
+def test_the_gate_page_explains_itself_before_asking_for_a_code(store):
+    body = shared_client(store).get("/").text
+    assert "入力は保存しません" in body
+    assert "試作" in body
+    assert "命式" in body
