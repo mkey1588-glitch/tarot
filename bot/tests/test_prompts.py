@@ -113,7 +113,7 @@ def test_the_system_prompt_forbids_fear_framing():
 def test_the_prompt_does_not_claim_to_be_the_crisis_mechanism():
     """Crisis routing is screen_input's, before the model is reached. The
     prompt saying otherwise would be a lie about where the guarantee lives."""
-    assert "前の段階で処理" in SYSTEM_PROMPT
+    assert "前の段階で済んでいます" in SYSTEM_PROMPT
 
 
 def test_the_model_is_not_asked_to_write_its_own_disclaimer():
@@ -165,3 +165,53 @@ def test_assembled_prompts_leave_no_unfilled_placeholders():
                    build_daily_prompt("chart", "2026-07-30", True),
                    build_daily_prompt("chart", "2026-07-30", False)):
         assert "{" not in prompt and "}" not in prompt
+
+
+# --- The failure mode a chart-fed model actually has ----------------------
+
+def test_the_prompt_forbids_reciting_the_chart_back():
+    """A model handed 庚午 辛巳 庚辰 will list it. A practitioner does not
+    say "your day master is 庚金" to a client — they say what it means. This
+    is the single most likely way a technically correct reading still reads
+    like a machine."""
+    assert "読み上げ" in SYSTEM_PROMPT
+    assert "日常の言葉に置き換えて" in SYSTEM_PROMPT
+
+
+def test_the_prompt_forbids_the_imperative():
+    """「〜してください」 is the register of an instruction manual. The
+    target user is being spoken to, not configured."""
+    assert "命令形" in SYSTEM_PROMPT
+
+
+def test_the_prompt_forbids_pronouncing_on_character():
+    """「あなたは〇〇な人です」 is the tone that makes fortune-telling feel
+    like judgement rather than company."""
+    assert "決めつけない" in SYSTEM_PROMPT
+
+
+def test_the_reading_is_told_to_answer_before_it_explains():
+    """Opening with the chart makes the reply about our machinery. The
+    person asked a question."""
+    assert "ご相談を受けとめる一文から始めて" in READING_PROMPT
+    assert "命式の話はそのあと" in READING_PROMPT
+
+
+def test_the_reading_ends_with_something_small():
+    """Rule 3 territory: a reading that recommends a big decision is giving
+    consequential advice."""
+    assert "小さなこと" in READING_PROMPT
+    assert "大きな決断は勧めないで" in READING_PROMPT
+
+
+def test_an_unknown_hour_is_not_apologised_for():
+    """Most people do not know their birth time. Treating that as a
+    deficiency is how a product tells a user they came unprepared."""
+    assert "詫びる必要はありません" in HOUR_UNKNOWN_NOTE
+    assert "推測で補わないで" in HOUR_UNKNOWN_NOTE
+
+
+def test_the_placeholder_flag_survived_the_rewrite():
+    """Better copy is not practitioner copy. Gate 2 stays open, and payment
+    stays locked behind it."""
+    assert PROMPTS_ARE_PLACEHOLDERS is True

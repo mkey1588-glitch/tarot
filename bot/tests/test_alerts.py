@@ -109,7 +109,7 @@ def test_a_failed_alert_never_breaks_the_users_reply(store):
     outcome = service.generate("U1", "恋愛運を教えてください", boundary_birth())
     assert outcome.outcome == "manual_review"
     assert outcome.review_id
-    assert "担当者が確認" in outcome.message.text
+    assert "人が確かめて" in outcome.message.text
 
 
 def test_a_failed_alert_still_leaves_the_queue_entry(store):

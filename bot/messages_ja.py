@@ -72,13 +72,15 @@ TEMPLATES: Dict[Msg, str] = {
     # clear and permanent disclosure; the per-reading footer is the
     # permanent half and this is the clear half.
     Msg.WELCOME: (
-        "はじめまして。四柱推命をもとにお話をうかがう占いです。\n\n"
-        "生年月日をお送りいただくと、命式をお作りします。\n"
+        "はじめまして。四柱推命でお話をうかがっています。\n\n"
+        "気になっていることを、そのまま書いていただいて構いません。\n"
+        "うまく言葉にならないことでも大丈夫です。\n\n"
+        "はじめに、生年月日を教えていただけますか。\n"
         "　例：1990-05-15\n"
-        "出生時刻がわかる場合は、続けてお送りください。\n"
+        "出生時刻がわかれば、続けてお書きください。\n"
         "　例：1990-05-15 07:30\n\n"
-        "時刻がわからなくても大丈夫です。その場合は三柱で拝見します。\n\n"
-        "1日 {limit} 回まで無料でお試しいただけます。\n\n"
+        "時刻はご存じない方が多いので、わからなくても大丈夫です。\n\n"
+        "1日 {limit} 回まで無料です。\n\n"
         + AI_DISCLOSURE_FULL
     ),
 
@@ -105,31 +107,35 @@ TEMPLATES: Dict[Msg, str] = {
 
     # PLACEHOLDER — practitioner to rewrite. Do not ship.
     Msg.BIRTH_DATA_SAVED: (
-        "ありがとうございます。{birth_summary} で承りました。\n\n"
+        "ありがとうございます。{birth_summary} で承りました。\n"
         "{time_note}\n\n"
-        "気になっていることを、そのままお書きください。"
+        "それでは、気になっていることをお聞かせください。\n"
+        "どなたかとの関わりのことでも、この先のことでも構いません。"
     ),
 
     # PLACEHOLDER — practitioner to rewrite. Do not ship.
     Msg.BIRTH_DATA_UNPARSEABLE: (
-        "うまく読み取れませんでした。\n"
-        "次の形式でお送りいただけますか。\n"
+        "すみません、こちらでうまく読み取れませんでした。\n"
+        "次のような形でお送りいただけると助かります。\n"
         "　例：1990-05-15\n"
-        "　例：1990-05-15 07:30"
+        "　例：1990年5月15日 7時30分"
     ),
 
     # PLACEHOLDER — practitioner to rewrite. Do not ship.
     Msg.NEED_BIRTH_DATA_FIRST: (
-        "命式をお作りするために、先に生年月日を教えていただけますか。\n"
-        "　例：1990-05-15"
+        "お答えする前に、生年月日を教えていただけますか。\n"
+        "命式をお作りするのに必要になります。\n"
+        "　例：1990-05-15\n\n"
+        "出生時刻はわからなくても大丈夫です。"
     ),
 
     # Rule 4 and Rule 1 both bear on this one. It states the limit and when
     # it resets, and it does not imply that anything is lost by waiting.
     # PLACEHOLDER — practitioner to rewrite. Do not ship.
     Msg.QUOTA_EXHAUSTED: (
-        "本日分の無料鑑定はここまでとなります。\n"
-        "日本時間の午前0時にまたお使いいただけます。"
+        "本日分はここまでとさせてください。\n"
+        "日付が変わりましたら、またお話をうかがえます。\n\n"
+        "急いで決めなくてよいことのほうが、多いように思います。"
     ),
 
     # RULE 1 IS THE WHOLE DESIGN OF THIS MESSAGE.
@@ -177,11 +183,11 @@ TEMPLATES: Dict[Msg, str] = {
     # on a boundary the computation cannot resolve, so a person looks at it.
     # PLACEHOLDER — practitioner to rewrite. Do not ship.
     Msg.MANUAL_REVIEW: (
-        "お預かりした生年月日は、暦のうえで節の切り替わりにとても近い時刻に"
+        "お預かりした生年月日は、暦のうえで季節の変わり目にとても近い時刻に"
         "あたります。\n"
-        "この場合、命式が二通りに分かれることがあり、自動ではお出ししない"
-        "ようにしています。\n\n"
-        "担当者が確認してからあらためてご連絡します。少しお時間をください。\n"
+        "こうした場合、命式が二通りに分かれることがあります。"
+        "確かでないまま申し上げたくないので、人が確かめてからお返事しています。\n\n"
+        "少しお時間をいただきますが、あらためてご連絡します。\n"
         "（受付番号：{review_id}）"
     ),
 
@@ -190,8 +196,8 @@ TEMPLATES: Dict[Msg, str] = {
     # and it goes to the practitioner review, not to the user.
     # PLACEHOLDER — practitioner to rewrite. Do not ship.
     Msg.READING_UNAVAILABLE: (
-        "申し訳ありません。今回はお出しできる鑑定文をご用意できませんでした。\n"
-        "もう一度お試しいただけますか。"
+        "すみません、今回はお出しできる形にまとまりませんでした。\n"
+        "こちらの都合ですので、よろしければもう一度お尋ねください。"
     ),
 
     # PLACEHOLDER — practitioner to rewrite. Do not ship.

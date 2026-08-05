@@ -142,7 +142,7 @@ def test_a_blocked_reading_never_appears_in_the_reply(store, config):
     body = read(client).text
 
     assert "必ず良い方向に向かいます" not in "".join(bubbles(body))
-    assert "お出しできる鑑定文をご用意できませんでした" in "".join(bubbles(body))
+    assert "お出しできる形にまとまりませんでした" in "".join(bubbles(body))
 
 
 def test_a_blocked_reading_is_shown_to_the_operator_with_the_reason(store,
@@ -159,7 +159,7 @@ def test_a_blocked_reading_is_shown_to_the_operator_with_the_reason(store,
 
 def test_a_boundary_chart_shows_the_hand_off_to_a_human(client):
     body = read(client, birth_date="2020-08-07", birth_time="").text
-    assert "担当者が確認" in body
+    assert "人が確かめて" in body
     assert "受付番号" in body
 
 
@@ -174,7 +174,7 @@ def test_the_demo_consumes_the_same_free_quota(client, store):
     for _ in range(3):
         read(client)
     assert store.free_quota_remaining(DEMO_USER, 3) == 0
-    assert "本日分の無料鑑定はここまで" in read(client).text   # not a paywall: we may not sell yet
+    assert "本日分はここまで" in read(client).text   # not a paywall: we may not sell yet
 
 
 def test_reset_restores_the_quota(client, store):
@@ -299,8 +299,8 @@ def test_each_visitor_gets_their_own_quota(store):
     second.post("/enter", headers=FORM, data={"code": "brd-1"})
     for _ in range(3):
         read(first)
-    assert "本日分の無料鑑定はここまで" in read(first).text
-    assert "本日分の無料鑑定はここまで" not in read(second).text
+    assert "本日分はここまで" in read(first).text
+    assert "本日分はここまで" not in read(second).text
 
 
 def test_the_session_token_never_reaches_the_event_log(store):

@@ -318,7 +318,7 @@ def test_a_boundary_chart_is_queued_for_a_human(store, service):
 def test_the_user_is_told_a_person_will_look_not_given_an_apology(store, service):
     outcome = service.generate("U1", "恋愛運を教えてください", _boundary_birth())
     assert outcome.review_id in outcome.message.text
-    assert "担当者が確認" in outcome.message.text
+    assert "人が確かめて" in outcome.message.text
 
 
 def test_a_boundary_chart_never_reaches_the_model(store, config):
