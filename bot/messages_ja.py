@@ -54,6 +54,10 @@ class Msg(Enum):
     MANUAL_REVIEW = "manual_review"
     READING_UNAVAILABLE = "reading_unavailable"
     SERVICE_PAUSED = "service_paused"
+    DATA_SUMMARY = "data_summary"
+    DATA_NONE = "data_none"
+    DATA_DELETE_CONFIRM = "data_delete_confirm"
+    DATA_DELETED = "data_deleted"
     OPERATOR_REVIEW_ALERT = "operator_review_alert"
     CRISIS = "crisis"
     PROFESSIONAL_MEDICAL = "professional_medical"
@@ -84,7 +88,8 @@ TEMPLATES: Dict[Msg, str] = {
         "・生年月日を送る（例：1990-05-15、または 1990-05-15 07:30）\n"
         "・「今日の運勢」で一日の傾向を見る\n"
         "・気になることをそのまま書いていただいても構いません\n"
-        "・「ヘルプ」でこの画面\n\n"
+        "・「ヘルプ」でこの画面\n"
+        "・「データ確認」でお預かりしている内容、「データ削除」で削除\n\n"
         "1日 {limit} 回まで無料です。\n\n"
         + AI_DISCLOSURE_FULL
     ),
@@ -193,6 +198,44 @@ TEMPLATES: Dict[Msg, str] = {
     Msg.SERVICE_PAUSED: (
         "ただいま混み合っており、鑑定を一時的にお休みしています。\n"
         "時間をおいてからお試しください。"
+    ),
+
+    # 個人情報保護法 gives a person the right to know what is held about
+    # them (開示) and to have it erased (削除). These are statutory rights,
+    # not features, so the wording states plainly what we hold rather than
+    # summarising it flatteringly.
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.DATA_SUMMARY: (
+        "お預かりしている内容です。\n\n"
+        "・生年月日：{birth}\n"
+        "・鑑定の回数：{readings} 回\n"
+        "・登録日：{created}\n\n"
+        "削除をご希望の場合は「データ削除」とお送りください。"
+    ),
+
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.DATA_NONE: (
+        "現在お預かりしている情報はありません。\n"
+        "生年月日をお送りいただくと、命式をお作りします。"
+    ),
+
+    # One confirmation, because erasure cannot be undone. Not two, and not a
+    # buried link: making deletion hard is the dark pattern Rule 4 forbids,
+    # and making it accidental is its own kind of harm.
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.DATA_DELETE_CONFIRM: (
+        "お預かりしている生年月日と登録内容をすべて削除します。\n"
+        "元に戻すことはできません。\n\n"
+        "よろしければ「削除する」とお送りください。\n"
+        "やめる場合は、そのまま別のことをお送りいただければ大丈夫です。"
+    ),
+
+    # PLACEHOLDER — practitioner to rewrite. Do not ship.
+    Msg.DATA_DELETED: (
+        "削除しました。生年月日と登録内容はもう保持していません。\n\n"
+        "ご利用いただいた回数などの集計は、どなたのものか分からない形にして"
+        "残しています。個人を特定できる情報は含まれていません。\n\n"
+        "またご利用になる場合は、生年月日をお送りください。"
     ),
 
     # Operational, not product copy — it goes to us, not to a customer, so

@@ -242,6 +242,103 @@ class Storage:
         return [r for r in self._read_jsonl(self.review_queue_file)
                 if r.get("status") == "open"]
 
+    # --- 個人情報保護法: disclosure and erasure -----------------------------
+
+    def export_user(self, user_id: str) -> dict:
+        """Everything we hold that is linked to this person (開示).
+
+        Disclosure is a statutory right, not a feature, so this reads every
+        file rather than the convenient one. If a new store is added and not
+        added here, the disclosure becomes a false statement about what we
+        keep — which is worse than not offering it.
+        """
+        with self._lock:
+            record = self._read_users().get(user_id, {})
+
+        return {
+            "user_id": user_id,
+            "profile": record,
+            "readings": sum(1 for r in self.iter_llm_usage()
+                            if r.get("user_id") == user_id),
+            "events": sum(1 for e in self.iter_events()
+                          if e.get("user_id") == user_id),
+            "manual_reviews": [
+                r for r in self._read_jsonl(self.review_queue_file)
+                if r.get("user_id") == user_id
+            ],
+            "held": bool(record),
+        }
+
+    def erase_user(self, user_id: str) -> dict:
+        """Erase this person (削除), keeping the counts they contributed to.
+
+        The birth data and the profile go. The funnel and usage records stay,
+        with the identifier replaced by a fresh random pseudonym — one per
+        erasure, so their journey remains coherent as a single person while
+        becoming unlinkable to them.
+
+        That distinction is deliberate and defensible. Deleting the funnel
+        rows would corrupt the one number Phase 0 exists to produce, and it
+        is not what the right requires: 保有個人データ is data that can
+        identify a person, and a record whose identifier has been replaced
+        by a value we never stored a mapping for cannot. Keeping the count
+        while destroying the link is the honest reading of both obligations.
+
+        The review queue is different again: those entries carry a birth
+        date, so the birth data is removed outright and only the review id
+        and timestamp remain, which is what an operator needs to know a case
+        was closed.
+        """
+        pseudonym = f"erased:{uuid.uuid4().hex[:12]}"
+        summary = {"user_id": user_id, "pseudonym": pseudonym,
+                   "profile_deleted": False, "events_anonymised": 0,
+                   "usage_anonymised": 0, "reviews_redacted": 0}
+
+        with self._lock:
+            users = self._read_users()
+            if user_id in users:
+                del users[user_id]
+                self._write_users(users)
+                summary["profile_deleted"] = True
+
+            summary["events_anonymised"] = self._rewrite_jsonl(
+                self.events_file,
+                lambda row: ({**row, "user_id": pseudonym}
+                             if row.get("user_id") == user_id else row))
+
+            summary["usage_anonymised"] = self._rewrite_jsonl(
+                self.llm_log_file,
+                lambda row: ({**row, "user_id": pseudonym}
+                             if row.get("user_id") == user_id else row))
+
+            summary["reviews_redacted"] = self._rewrite_jsonl(
+                self.review_queue_file,
+                lambda row: ({k: v for k, v in row.items()
+                              if k in ("review_id", "ts", "status", "reason")}
+                             | {"user_id": pseudonym, "redacted": True}
+                             if row.get("user_id") == user_id else row))
+
+        return summary
+
+    def _rewrite_jsonl(self, path: Path, transform) -> int:
+        """Rewrite a log through `transform`. Returns rows changed.
+
+        Written to a temporary file and renamed, so a crash mid-erasure
+        leaves the original rather than a half-erased file.
+        """
+        if not path.exists():
+            return 0
+        changed = 0
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as out:
+            for row in self._read_jsonl(path):
+                new = transform(row)
+                if new != row:
+                    changed += 1
+                out.write(json.dumps(new, ensure_ascii=False) + "\n")
+        tmp.replace(path)
+        return changed
+
     # --- Stats -------------------------------------------------------------
 
     def get_stats(self) -> Dict[str, Any]:

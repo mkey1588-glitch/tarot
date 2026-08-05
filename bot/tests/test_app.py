@@ -309,3 +309,112 @@ def test_the_funnel_report_says_it_has_no_answer_yet(client):
     assert body["overall"]["rates"]["paid_of_offered"] is None
     assert body["payments_enabled"] is False
     assert "prompts_written" in body["blocking_gates"]
+
+
+# --- 個人情報保護法: disclosure and erasure ---------------------------------
+
+def register(client, birth="1990-05-15 07:30"):
+    signed(client, text_event(birth))
+
+
+def test_a_user_can_see_what_is_held_about_them(client, transport):
+    """開示 is a statutory right, so it is a command rather than something a
+    user has to email us about."""
+    register(client)
+    signed(client, text_event("恋愛運を教えてください"))
+    signed(client, text_event("データ確認"))
+
+    summary = transport.texts[-1]
+    assert "1990年5月15日 07:30" in summary
+    assert "1 回" in summary          # one reading so far
+
+
+def test_an_unregistered_user_is_told_exactly_what_is_held(client, transport):
+    """Not "nothing". Sending us a message creates a row with a timestamp
+    and a counter, so claiming we hold nothing would be a false statement
+    about what we keep — which is worse than not offering disclosure."""
+    signed(client, text_event("データ確認"))
+    summary = transport.texts[-1]
+    assert "未登録" in summary
+    assert "0 回" in summary
+
+
+def test_data_none_is_for_someone_we_have_never_seen(store, transport, config):
+    """Reachable only before any message, which is when it is true."""
+    assert store.export_user("U-never-seen")["held"] is False
+
+
+def test_deletion_asks_once_before_doing_it(client, store, transport):
+    """One confirmation, because erasure cannot be undone. Not two, and not
+    a buried link — making deletion hard is the dark pattern Rule 4 forbids,
+    and making it accidental is its own harm."""
+    register(client)
+    signed(client, text_event("データ削除"))
+    assert "元に戻すことはできません" in transport.texts[-1]
+    assert store.get_user("U1")["birth_date"] == "1990-05-15"   # not yet gone
+
+
+def test_confirming_erases_the_birth_data(client, store, transport):
+    register(client)
+    signed(client, text_event("データ削除"))
+    signed(client, text_event("削除する"))
+
+    assert transport.texts[-1] == TEMPLATES[Msg.DATA_DELETED]
+    assert store.get_user("U1") == {}
+    assert "1990-05-15" not in store.users_file.read_text(encoding="utf-8")
+
+
+def test_confirming_without_asking_first_does_nothing(client, store):
+    """削除する out of the blue is far more likely to be a stray message
+    than an intention to erase."""
+    register(client)
+    signed(client, text_event("削除する"))
+    assert store.get_user("U1")["birth_date"] == "1990-05-15"
+
+
+def test_any_other_message_cancels_a_pending_deletion(client, store):
+    """Silence is the safe default for something irreversible: a user who
+    changes their mind should not have to say so."""
+    register(client)
+    signed(client, text_event("データ削除"))
+    signed(client, text_event("ヘルプ"))
+    signed(client, text_event("削除する"))
+    assert store.get_user("U1")["birth_date"] == "1990-05-15"
+
+
+def test_erasure_keeps_the_counts_it_contributed_to(client, store):
+    """Deleting the funnel rows would corrupt the one number Phase 0 exists
+    to produce, and it is not what the right requires: a record whose
+    identifier has been replaced by a value we never stored a mapping for
+    can no longer identify anyone."""
+    from bot import funnel
+    register(client)
+    signed(client, text_event("恋愛運を教えてください"))
+    before = funnel.counts(store)
+
+    signed(client, text_event("データ削除"))
+    signed(client, text_event("削除する"))
+
+    assert funnel.counts(store) == before
+    assert "U1" not in store.events_file.read_text(encoding="utf-8")
+
+
+def test_erasure_removes_birth_data_from_the_review_queue(client, store):
+    """Those entries carry a birth date. Only the review id and timestamp
+    survive, which is what an operator needs to know a case was closed."""
+    signed(client, text_event("2020-08-07"))
+    signed(client, text_event("恋愛運を教えてください"))
+    assert any(r.get("birth_date") for r in store.open_reviews())
+
+    signed(client, text_event("データ削除"))
+    signed(client, text_event("削除する"))
+
+    remaining = store.open_reviews()
+    assert remaining and not any(r.get("birth_date") for r in remaining)
+    assert remaining[0]["review_id"]
+
+
+def test_the_help_text_mentions_both_rights(client, transport):
+    signed(client, text_event("ヘルプ"))
+    assert "データ確認" in transport.texts[-1]
+    assert "データ削除" in transport.texts[-1]

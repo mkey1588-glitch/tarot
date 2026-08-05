@@ -46,6 +46,12 @@ HELP_COMMANDS = {"ヘルプ", "help", "使い方"}
 DAILY_COMMANDS = {"今日の運勢", "今日", "運勢"}
 DEEP_COMMANDS = {"詳しく", "詳細"}
 
+# 個人情報保護法 開示・削除. Statutory rights, so they are commands rather
+# than something a user has to email us about.
+DATA_COMMANDS = {"データ確認", "登録内容", "個人情報"}
+DELETE_COMMANDS = {"データ削除", "削除"}
+DELETE_CONFIRM = {"削除する", "はい削除"}
+
 
 def create_app(config: Optional[Config] = None,
                storage: Optional[Storage] = None,
@@ -201,6 +207,20 @@ def _handle_text(app: FastAPI, user_id: str, reply_token: str,
 
     storage.increment_message_count(user_id)
 
+    # A pending deletion is cancelled by anything that is not the
+    # confirmation. Computed here, before the command dispatch, because
+    # several commands return early — with this at the bottom, saying
+    # 「ヘルプ」 left the deletion armed and a later stray 「削除する」 would
+    # have erased their data.
+    #
+    # Silence is the safe default for something irreversible: a user who
+    # changes their mind should not have to say so.
+    awaiting_erasure = bool(storage.get_user(user_id).get("awaiting_erasure"))
+    if awaiting_erasure and text not in DELETE_CONFIRM \
+            and text not in DELETE_COMMANDS:
+        storage.upsert_user(user_id, {"awaiting_erasure": False})
+        awaiting_erasure = False
+
     if text in HELP_COMMANDS:
         transport.reply(reply_token,
                         canned(Msg.HELP, limit=config.free_tier_limit))
@@ -208,6 +228,22 @@ def _handle_text(app: FastAPI, user_id: str, reply_token: str,
 
     if text in DEEP_COMMANDS:
         _handle_checkout(app, user_id, reply_token)
+        return
+
+    if text in DATA_COMMANDS:
+        _handle_data_request(app, user_id, reply_token)
+        return
+
+    if text in DELETE_COMMANDS:
+        storage.upsert_user(user_id, {"awaiting_erasure": True})
+        transport.reply(reply_token, canned(Msg.DATA_DELETE_CONFIRM))
+        return
+
+    if text in DELETE_CONFIRM and awaiting_erasure:
+        summary = storage.erase_user(user_id)
+        logger.info("erasure completed: profile_deleted=%s events=%d",
+                    summary["profile_deleted"], summary["events_anonymised"])
+        transport.reply(reply_token, canned(Msg.DATA_DELETED))
         return
 
     # A message that is only birth data is registration, not a question.
@@ -233,6 +269,26 @@ def _handle_text(app: FastAPI, user_id: str, reply_token: str,
 
     outcome = service.generate(user_id, text, birth=stored, kind=kind)
     transport.reply(reply_token, outcome.message)
+
+
+def _handle_data_request(app: FastAPI, user_id: str, reply_token: str) -> None:
+    """開示 — what we hold about this person, in their own words."""
+    storage: Storage = app.state.storage
+    transport: Transport = app.state.transport
+
+    export = storage.export_user(user_id)
+    if not export["held"]:
+        transport.reply(reply_token, canned(Msg.DATA_NONE))
+        return
+
+    birth = BirthData.from_record(export["profile"])
+    created = (export["profile"].get("created_at") or "")[:10]
+    transport.reply(reply_token, canned(
+        Msg.DATA_SUMMARY,
+        birth=birth.summary() if birth else "未登録",
+        readings=export["readings"],
+        created=created or "不明",
+    ))
 
 
 def _handle_checkout(app: FastAPI, user_id: str, reply_token: str) -> None:

@@ -103,6 +103,29 @@ remove it. That disclosure lives in onboarding and the privacy policy.
 - `/admin/*` requires `ADMIN_TOKEN`. The review queue holds birth data.
   Unset means those endpoints are disabled, not open.
 
+### 開示 and 削除
+
+Statutory rights under 個人情報保護法, so they are commands in the bot
+rather than something a user has to email us about.
+
+- **「データ確認」** reports what is held: birth date, reading count,
+  registration date. It reads every store rather than the convenient one —
+  a disclosure that misses a file is a false statement about what we keep.
+- **「データ削除」** asks once, then **「削除する」** erases. One
+  confirmation: making deletion hard is the dark pattern Rule 4 forbids,
+  and making it accidental is its own harm. Any other message cancels.
+
+Erasure deletes the profile and strips the birth date from any
+manual-review entry, leaving the review id so an operator knows the case
+was closed. Funnel and usage rows are **kept with the identifier replaced**
+by a fresh random pseudonym — one per erasure, so the journey stays
+coherent as one person while becoming unlinkable to them.
+
+That split is deliberate. Deleting the funnel rows would corrupt the one
+number Phase 0 exists to produce, and it is not what the right requires:
+保有個人データ is data that can identify someone, and a record whose
+identifier was replaced by a value we never stored a mapping for cannot.
+
 ## The Phase 0 number
 
 `GET /admin/funnel` reports it, or says honestly that we do not have it yet.

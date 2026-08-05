@@ -144,6 +144,8 @@ def test_every_parameterised_message_renders_with_its_arguments():
         Msg.PAYWALL_OFFER: canned(Msg.PAYWALL_OFFER, price=300),
         Msg.OPERATOR_REVIEW_ALERT: canned(Msg.OPERATOR_REVIEW_ALERT,
                                           review_id="abc123"),
+        Msg.DATA_SUMMARY: canned(Msg.DATA_SUMMARY, birth="1990年5月15日",
+                                 readings=3, created="2026-08-01"),
         Msg.CHECKOUT_HANDOFF: canned(Msg.CHECKOUT_HANDOFF, price=300,
                                      url="https://example.invalid/c/1"),
     }
